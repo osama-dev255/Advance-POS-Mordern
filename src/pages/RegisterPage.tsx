@@ -96,11 +96,14 @@ const RegisterPage = ({ onBack }: RegisterPageProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Form submission triggered");
     
     if (!validateForm()) {
+      console.log("Form validation failed");
       return;
     }
 
+    console.log("Form validation passed");
     setIsLoading(true);
     
     try {
@@ -111,7 +114,9 @@ const RegisterPage = ({ onBack }: RegisterPageProps) => {
         full_name: `${firstName} ${lastName}`,
       };
 
+      console.log("Attempting to sign up user with email:", email);
       const result = await signUp(email, password, userData);
+      console.log("Sign up result:", result);
       
       if (result.error) {
         console.error("Sign up error:", result.error);
@@ -126,6 +131,7 @@ const RegisterPage = ({ onBack }: RegisterPageProps) => {
 
       // If sign up is successful, create the user record in the database
       if (result.user) {
+        console.log("User signed up successfully, creating database record");
         const dbUserData = {
           id: result.user.id,
           username: email.split("@")[0],
@@ -165,6 +171,7 @@ const RegisterPage = ({ onBack }: RegisterPageProps) => {
         variant: "destructive",
       });
     } finally {
+      console.log("Registration process completed");
       setIsLoading(false);
     }
   };
@@ -297,6 +304,7 @@ const RegisterPage = ({ onBack }: RegisterPageProps) => {
               type="submit" 
               className="w-full h-10 sm:h-12 text-sm sm:text-base"
               disabled={isLoading}
+              onClick={() => console.log("Sign up button clicked")}
             >
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>

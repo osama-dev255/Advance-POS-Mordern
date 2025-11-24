@@ -41,8 +41,6 @@ export const getCurrentUserRole = async (): Promise<string | null> => {
     
     // If user doesn't exist in the users table, create them
     if (userError || !userData) {
-      console.log('User not found in users table, creating new user record');
-      
       // Create a new user record with default values
       const newUser = {
         id: user.id,
@@ -108,7 +106,7 @@ export const hasModuleAccess = (role: string | null, module: string): boolean =>
       'financial-statements', 'purchase-orders', 'purchase-terminal',
       'purchase-transactions', 'purchase-reports', 'spending-analytics',
       'statements-reports', 'financial-reports', 'income-statement',
-      'assets'
+      'assets', 'capital'
     ],
     'manager': [
       'sales', 'inventory', 'customers', 'suppliers', 'purchase', 'finance', 
@@ -119,14 +117,14 @@ export const hasModuleAccess = (role: string | null, module: string): boolean =>
       'financial-statements', 'purchase-orders', 'purchase-terminal',
       'purchase-transactions', 'purchase-reports', 'spending-analytics',
       'statements-reports', 'financial-reports', 'income-statement',
-      'assets'
+      'assets', 'capital'
     ],
     'cashier': [
       'sales', 'customers', 'products', 'transactions', 'discounts', 'scanner',
-      'cart', 'orders', 'analytics', 'test-data'
+      'cart', 'orders', 'analytics', 'test-data', 'capital'
     ],
     'staff': [
-      'inventory', 'customers', 'products'
+      'inventory', 'customers', 'products', 'capital'
     ]
   };
   

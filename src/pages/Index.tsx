@@ -37,10 +37,11 @@ import { AdvancedLayout } from "@/components/AdvancedLayout";
 import { createClient } from "@supabase/supabase-js";
 import { getCurrentUser } from "@/services/authService";
 
-// Import FinanceDashboard, IncomeStatement, and AssetsManagement
+// Import FinanceDashboard, IncomeStatement, AssetsManagement, and CapitalManagement
 import { FinanceDashboard } from "@/pages/FinanceDashboard";
 import { IncomeStatement } from "@/pages/IncomeStatement";
 import { AssetsManagement } from "@/pages/AssetsManagement";
+import { CapitalManagement } from "@/pages/CapitalManagement";
 
 // Initialize Supabase client
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
@@ -64,7 +65,6 @@ export const Index = () => {
 
   const handleLogin = async (credentials: { username: string; password: string }) => {
     const { username, password } = credentials;
-    console.log("Attempting login with:", username);
     
     try {
       // First try Supabase authentication
@@ -83,7 +83,6 @@ export const Index = () => {
         return;
       } else {
         // Supabase auth successful
-        console.log("Supabase auth successful:", result);
         
         // Get user role and redirect based on role
         const { data: { user: currentUser } } = await supabase.auth.getUser();
@@ -95,19 +94,15 @@ export const Index = () => {
             setCurrentView("comprehensive");
           } else {
             // For other roles, use the existing logic
-            switch (currentUser.email) {
-              case currentUser.email?.includes('admin') ? currentUser.email : '':
-                setCurrentView("comprehensive");
-                break;
-              case currentUser.email?.includes('manager') ? currentUser.email : '':
-                setCurrentView("comprehensive");
-                break;
-              case currentUser.email?.includes('cashier') ? currentUser.email : '':
-                setCurrentView("sales");
-                break;
-              default:
-                // Default to comprehensive dashboard for unknown roles
-                setCurrentView("comprehensive");
+            if (currentUser.email?.includes('admin')) {
+              setCurrentView("comprehensive");
+            } else if (currentUser.email?.includes('manager')) {
+              setCurrentView("comprehensive");
+            } else if (currentUser.email?.includes('cashier')) {
+              setCurrentView("sales");
+            } else {
+              // Default to comprehensive dashboard for unknown roles
+              setCurrentView("comprehensive");
             }
           }
         }
@@ -243,6 +238,9 @@ export const Index = () => {
         setCurrentView("financial-reports");
         break;
       case "taxes":
+        setCurrentView("finance");
+        break;
+      case "capital":
         setCurrentView("finance");
         break;
       case "income-statement":
@@ -602,6 +600,15 @@ export const Index = () => {
               console.log("Rendering AssetsManagement");
               return (
                 <AssetsManagement
+                  username={user?.email || "admin"}
+                  onBack={handleBack}
+                  onLogout={handleLogout}
+                />
+              );
+            case "capital":
+              console.log("Rendering CapitalManagement");
+              return (
+                <CapitalManagement
                   username={user?.email || "admin"}
                   onBack={handleBack}
                   onLogout={handleLogout}

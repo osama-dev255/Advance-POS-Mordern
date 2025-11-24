@@ -15,7 +15,8 @@ import {
   Scan,
   AlertTriangle,
   Printer,
-  Building
+  Building,
+  PiggyBank
 } from "lucide-react";
 import { hasModuleAccess, getCurrentUserRole } from "@/utils/salesPermissionUtils";
 
@@ -35,11 +36,19 @@ interface ComprehensiveDashboardProps {
 
 export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: ComprehensiveDashboardProps) => {
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [isRoleLoading, setIsRoleLoading] = useState(true);
   
   useEffect(() => {
     const fetchUserRole = async () => {
-      const role = await getCurrentUserRole();
-      setUserRole(role);
+      try {
+        const role = await getCurrentUserRole();
+        setUserRole(role);
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+        setUserRole(null);
+      } finally {
+        setIsRoleLoading(false);
+      }
     };
     
     fetchUserRole();
@@ -72,6 +81,13 @@ export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: Compr
       title: "Financial Management",
       description: "Manage expenses, debts, and financial reporting",
       icon: Wallet,
+      color: "bg-white border border-gray-200"
+    },
+    {
+      id: "capital",
+      title: "Capital Management",
+      description: "Track and manage business capital, investments, and funding",
+      icon: PiggyBank,
       color: "bg-white border border-gray-200"
     },
     {
@@ -182,27 +198,60 @@ export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: Compr
   ];
 
   // Filter modules based on user role
-  const modules = allModules.filter(module => hasModuleAccess(userRole, module.id));
+  const modules = allModules.filter(module => {
+    // While role is loading, show all modules to avoid empty state
+    if (isRoleLoading) {
+      return true;
+    }
+    
+    return hasModuleAccess(userRole, module.id);
+  });
 
   const handleNavigate = async (moduleId: string) => {
     // Special handling for reports module
     if (moduleId === "reports") {
-      console.log("Reports module clicked");
       onNavigate("statements-reports");
       return;
     }
     // Special handling for financial statements module
     if (moduleId === "financial-statements") {
-      console.log("Financial statements module clicked");
       onNavigate("financial-reports");
       return;
     }
     onNavigate(moduleId);
   };
 
+  // Show loading state while fetching role
+  if (isRoleLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <main className="container mx-auto p-4 sm:p-6">
+          <div className="mb-8 sm:mb-10">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3">Welcome back, {username}!</h2>
+            <p className="text-muted-foreground text-sm sm:text-base md:text-lg">
+              Loading your dashboard...
+            </p>
+          </div>
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 sm:gap-5 auto-rows-fr">
+            {allModules.map((module) => (
+              <div key={module.id} className="flex">
+                <DashboardCard
+                  title={module.title}
+                  description={module.description}
+                  icon={module.icon}
+                  onClick={() => {}}
+                  className={`${module.color} opacity-50`}
+                />
+              </div>
+            ))}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Main content without Navigation since it's now in AdvancedLayout */}
       <main className="container mx-auto p-4 sm:p-6">
         <div className="mb-8 sm:mb-10">
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3">Welcome back, {username}!</h2>
@@ -219,10 +268,7 @@ export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: Compr
                   title={module.title}
                   description={module.description}
                   icon={module.icon}
-                  onClick={() => {
-                    console.log("Module clicked:", module.id);
-                    handleNavigate(module.id);
-                  }}
+                  onClick={() => handleNavigate(module.id)}
                   className={module.color}
                 />
               </div>
