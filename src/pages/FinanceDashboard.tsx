@@ -10,7 +10,8 @@ import {
   Users,
   Truck,
   Bot,
-  PiggyBank
+  PiggyBank,
+  Package
 } from "lucide-react";
 import { hasModuleAccess, getCurrentUserRole } from "@/utils/salesPermissionUtils";
 
@@ -68,6 +69,13 @@ export const FinanceDashboard = ({ username, onBack, onLogout, onNavigate }: Fin
       title: "Supplier Settlements",
       description: "Manage supplier payments and settlements",
       icon: Truck,
+      color: "bg-white border border-gray-200"
+    },
+    {
+      id: "assets",
+      title: "Assets Management",
+      description: "Manage company assets and transactions",
+      icon: Package,
       color: "bg-white border border-gray-200"
     },
     {

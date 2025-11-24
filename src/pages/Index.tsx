@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { LoginForm } from "@/components/LoginForm";
 import RegisterPage from "./RegisterPage";
+import { useAuth } from "@/contexts/AuthContext";
 import { Dashboard } from "@/pages/Dashboard";
 import { SalesDashboard } from "@/pages/SalesDashboard";
 import { SalesCart } from "@/pages/SalesCart";
@@ -34,8 +35,6 @@ import { TestPage } from "@/pages/TestPage";
 import { TestReceiptQR } from "@/pages/TestReceiptQR";
 import { SplashScreen } from "@/components/SplashScreen";
 import { AdvancedLayout } from "@/components/AdvancedLayout";
-import { createClient } from "@supabase/supabase-js";
-import { getCurrentUser } from "@/services/authService";
 
 // Import FinanceDashboard, IncomeStatement, AssetsManagement, and CapitalManagement
 import { FinanceDashboard } from "@/pages/FinanceDashboard";
@@ -43,15 +42,10 @@ import { IncomeStatement } from "@/pages/IncomeStatement";
 import { AssetsManagement } from "@/pages/AssetsManagement";
 import { CapitalManagement } from "@/pages/CapitalManagement";
 
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
 export const Index = () => {
   const [currentView, setCurrentView] = useState("splash");
-  const [user, setUser] = useState<any>(null);
   const [showSplash, setShowSplash] = useState(true);
+  const { user, login, logout } = useAuth();
 
   // Show splash screen for 2 seconds
   useEffect(() => {
@@ -67,38 +61,34 @@ export const Index = () => {
     const { username, password } = credentials;
     
     try {
-      // First try Supabase authentication
-      const result = await supabase.auth.signInWithPassword({
-        email: username,
-        password,
-      });
+      // Use AuthContext login function
+      const result = await login(username, password);
       
       if (result.error) {
         // Check if it's an email confirmation error
-        if (result.error.message.includes("Email not confirmed")) {
+        if (result.error.message && result.error.message.includes("Email not confirmed")) {
           console.warn("Email not confirmed. Please check email and confirm before logging in.");
         }
         // Don't fall back to mock authentication - just show error
-        console.warn("Supabase auth failed:", result.error);
+        console.warn("Auth failed:", result.error);
         return;
       } else {
-        // Supabase auth successful
+        // Auth successful
         
         // Get user role and redirect based on role
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        if (currentUser) {
+        if (result.user) {
           // For staff members, we need to check what modules they have access to
-          if (currentUser.email?.includes('staff')) {
+          if (result.user.email?.includes('staff')) {
             // Staff members should not have access to sales management
             // Redirect to comprehensive dashboard which will filter modules
             setCurrentView("comprehensive");
           } else {
             // For other roles, use the existing logic
-            if (currentUser.email?.includes('admin')) {
+            if (result.user.email?.includes('admin')) {
               setCurrentView("comprehensive");
-            } else if (currentUser.email?.includes('manager')) {
+            } else if (result.user.email?.includes('manager')) {
               setCurrentView("comprehensive");
-            } else if (currentUser.email?.includes('cashier')) {
+            } else if (result.user.email?.includes('cashier')) {
               setCurrentView("sales");
             } else {
               // Default to comprehensive dashboard for unknown roles
@@ -110,22 +100,18 @@ export const Index = () => {
     } catch (error) {
       console.error("Login error:", error);
     }
-
-    // Set user regardless of auth method
-    setUser({ email: credentials.username });
   };
 
   const handleLogout = async () => {
     console.log("Logging out");
     try {
-      // Logout from Supabase
-      await supabase.auth.signOut();
+      // Use AuthContext logout function
+      await logout();
     } catch (error) {
-      console.error("Supabase logout error:", error);
+      console.error("Logout error:", error);
     }
     
     // Reset state
-    setUser(null);
     setCurrentView("login");
   };
 
@@ -254,6 +240,10 @@ export const Index = () => {
         break;
       case "assets":
         setCurrentView("comprehensive");
+        break;
+      case "purchase-assets":
+      case "sell-assets":
+        setCurrentView("assets");
         break;
       default:
         setCurrentView("comprehensive");
@@ -603,7 +593,217 @@ export const Index = () => {
                   username={user?.email || "admin"}
                   onBack={handleBack}
                   onLogout={handleLogout}
+                  onNavigate={handleNavigate}
                 />
+              );
+            case "purchase-assets":
+              console.log("Rendering Purchase Assets page");
+              return (
+                <div className="min-h-screen bg-background">
+                  <header className="border-b">
+                    <div className="container mx-auto px-4 py-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h1 className="text-2xl font-bold">Purchase Assets</h1>
+                          <p className="text-muted-foreground">Add new assets to your business</p>
+                        </div>
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleBack();
+                          }}
+                          className="text-primary hover:underline px-4 py-2 border border-primary rounded-md"
+                        >
+                          ← Back to Assets
+                        </button>
+                      </div>
+                    </div>
+                  </header>
+                  <main className="container mx-auto p-4 sm:p-6">
+                    <div className="max-w-2xl mx-auto">
+                      <div className="bg-white rounded-lg shadow-md p-6">
+                        <h2 className="text-xl font-semibold mb-4">Asset Purchase Form</h2>
+                        <form className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Asset Name</label>
+                            <input 
+                              type="text" 
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Enter asset name"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Description</label>
+                            <textarea 
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Enter asset description"
+                              rows={3}
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Purchase Date</label>
+                              <input 
+                                type="date" 
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Purchase Price</label>
+                              <input 
+                                type="number" 
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                                placeholder="Enter purchase price"
+                                step="0.01"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Category</label>
+                              <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+                                <option value="">Select category</option>
+                                <option value="equipment">Equipment</option>
+                                <option value="vehicles">Vehicles</option>
+                                <option value="furniture">Furniture</option>
+                                <option value="technology">Technology</option>
+                                <option value="property">Property</option>
+                                <option value="other">Other</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Estimated Lifespan (years)</label>
+                              <input 
+                                type="number" 
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                                placeholder="Enter lifespan"
+                                min="1"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex justify-end space-x-3 pt-4">
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleBack();
+                              }}
+                              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              type="submit"
+                              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
+                            >
+                              Purchase Asset
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </main>
+                </div>
+              );
+            case "sell-assets":
+              console.log("Rendering Sell Assets page");
+              return (
+                <div className="min-h-screen bg-background">
+                  <header className="border-b">
+                    <div className="container mx-auto px-4 py-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h1 className="text-2xl font-bold">Sell Assets</h1>
+                          <p className="text-muted-foreground">Sell existing business assets</p>
+                        </div>
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleBack();
+                          }}
+                          className="text-primary hover:underline px-4 py-2 border border-primary rounded-md"
+                        >
+                          ← Back to Assets
+                        </button>
+                      </div>
+                    </div>
+                  </header>
+                  <main className="container mx-auto p-4 sm:p-6">
+                    <div className="max-w-2xl mx-auto">
+                      <div className="bg-white rounded-lg shadow-md p-6">
+                        <h2 className="text-xl font-semibold mb-4">Asset Sale Form</h2>
+                        <form className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Select Asset</label>
+                            <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+                              <option value="">Select an asset to sell</option>
+                              <option value="1">Office Computer - $1,200</option>
+                              <option value="2">Delivery Van - $15,000</option>
+                              <option value="3">Office Desk - $300</option>
+                              <option value="4">Printer - $250</option>
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Sale Date</label>
+                              <input 
+                                type="date" 
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Sale Price</label>
+                              <input 
+                                type="number" 
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                                placeholder="Enter sale price"
+                                step="0.01"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Buyer Information</label>
+                            <input 
+                              type="text" 
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Enter buyer name or company"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Notes</label>
+                            <textarea 
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Additional notes about the sale"
+                              rows={3}
+                            />
+                          </div>
+                          <div className="flex justify-end space-x-3 pt-4">
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleBack();
+                              }}
+                              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              type="submit"
+                              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
+                            >
+                              Sell Asset
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </main>
+                </div>
               );
             case "capital":
               console.log("Rendering CapitalManagement");
