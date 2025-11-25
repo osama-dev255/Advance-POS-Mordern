@@ -42,6 +42,7 @@ export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: Compr
     const fetchUserRole = async () => {
       try {
         const role = await getCurrentUserRole();
+        console.log("Fetched user role:", role);
         setUserRole(role);
       } catch (error) {
         console.error("Error fetching user role:", error);
@@ -204,12 +205,16 @@ export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: Compr
       return true;
     }
     
-    return hasModuleAccess(userRole, module.id);
+    const hasAccess = hasModuleAccess(userRole, module.id);
+    console.log("Module", module.id, "access for role", userRole, ":", hasAccess);
+    return hasAccess;
   });
 
   const handleNavigate = async (moduleId: string) => {
+    console.log("handleNavigate called with moduleId:", moduleId);
     // Special handling for reports module
-    if (moduleId === "reports") {
+    if (moduleId === "reports" || moduleId === "analytics") {
+      console.log("Navigating to statements-reports for module:", moduleId);
       onNavigate("statements-reports");
       return;
     }
@@ -218,6 +223,7 @@ export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: Compr
       onNavigate("financial-reports");
       return;
     }
+    console.log("Navigating to module:", moduleId);
     onNavigate(moduleId);
   };
 
@@ -257,6 +263,11 @@ export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: Compr
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3">Welcome back, {username}!</h2>
           <p className="text-muted-foreground text-sm sm:text-base md:text-lg">
             Select a module to manage your business operations
+          </p>
+        </div>
+        <div className="mb-4">
+          <p className="text-sm text-muted-foreground">
+            User role: {userRole || "Loading..."} | Total modules: {allModules.length} | Accessible modules: {modules.length}
           </p>
         </div>
         

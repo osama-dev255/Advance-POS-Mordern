@@ -36,6 +36,12 @@ export const uploadFile = async (
       console.error('Error listing buckets:', bucketError);
     }
     
+    // If no buckets are available, return null to avoid errors
+    if (availableBuckets.length === 0) {
+      console.log('No storage buckets available. File upload skipped.');
+      return null;
+    }
+    
     // Try to upload to the specified bucket first
     let { data, error } = await supabase.storage
       .from(bucket)
@@ -72,35 +78,9 @@ export const uploadFile = async (
           console.error(`Failed to upload to bucket ${availableBucket}:`, altError);
         }
       }
-      
-      // If we still haven't succeeded, try creating a simple bucket
-      console.log('Trying to create bucket: assets');
-      const { error: createError } = await supabase.storage.createBucket('assets');
-      if (!createError) {
-        // Try uploading again
-        const { data: retryData, error: retryError } = await supabase.storage
-          .from('assets')
-          .upload(fileName, file, {
-            cacheControl: '3600',
-            upsert: false
-          });
-        
-        if (!retryError && retryData) {
-          const { data: { publicUrl: retryPublicUrl } } = supabase.storage
-            .from('assets')
-            .getPublicUrl(fileName);
-          
-          console.log('Successfully uploaded after creating bucket');
-          return retryPublicUrl;
-        }
-      } else {
-        console.error('Error creating bucket:', createError);
-      }
-      
-      // Final fallback: Return null to indicate failure
-      console.log('All upload attempts failed');
     }
     
+    // If we still have an error, log it and return null
     if (error) {
       console.error('Error uploading file:', error);
       console.error('File size:', file.size);
@@ -131,25 +111,25 @@ export const deleteFile = async (
   bucket: string = 'assets'
 ): Promise<boolean> => {
   try {
+    // First check if the bucket exists
+    const { data: bucketsData, error: bucketsError } = await supabase.storage.listBuckets();
+    if (bucketsError) {
+      console.error('Error listing buckets:', bucketsError);
+      return false;
+    }
+    
+    const bucketExists = bucketsData?.some(b => b.name === bucket);
+    if (!bucketExists) {
+      console.log(`Bucket ${bucket} does not exist. File deletion skipped.`);
+      return true; // Return true since there's nothing to delete
+    }
+    
     const { error } = await supabase.storage
       .from(bucket)
       .remove([filePath]);
     
     if (error) {
       console.error('Error deleting file:', error);
-      
-      // If it's a bucket not found error, try to list available buckets
-      if (error.message && error.message.includes('Bucket not found')) {
-        try {
-          const { data: bucketsData, error: bucketsError } = await supabase.storage.listBuckets();
-          if (!bucketsError && bucketsData) {
-            console.log('Available buckets for deletion:', bucketsData.map(b => b.name));
-          }
-        } catch (bucketError) {
-          console.error('Error listing buckets:', bucketError);
-        }
-      }
-      
       return false;
     }
     

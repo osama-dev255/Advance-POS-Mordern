@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PrintUtils } from "@/utils/printUtils";
-import { getTaxRecords, TaxRecord } from "@/services/databaseService";
+import { getTaxRecords, TaxRecord, getAssets, Asset, getAssetTransactions, AssetTransaction } from "@/services/databaseService";
 
 interface FinancialReportsProps {
   username: string;
@@ -116,7 +116,43 @@ export const FinancialReports = ({ username, onBack, onLogout, onNavigate }: Fin
     period: "January 2024"
   };
 
-  const handleViewReport = (reportType: string) => {
+  // Add this function to calculate VAT and depreciation effects
+  const calculateAssetFinancials = async () => {
+    try {
+      // Fetch all assets and transactions
+      const assets = await getAssets();
+      const transactions = await getAssetTransactions();
+      
+      // Calculate total VAT from asset transactions
+      let totalVat = 0;
+      let totalDepreciation = 0;
+      
+      // Calculate VAT from transactions
+      transactions.forEach(transaction => {
+        if (transaction.vat_amount) {
+          totalVat += transaction.vat_amount;
+        }
+      });
+      
+      // Calculate depreciation from assets
+      const currentDate = new Date();
+      assets.forEach(asset => {
+        if (asset.depreciation_rate && asset.purchase_date && asset.status === 'active') {
+          const purchaseDate = new Date(asset.purchase_date);
+          const yearsOwned = (currentDate.getTime() - purchaseDate.getTime()) / (1000 * 3600 * 24 * 365);
+          const annualDepreciation = asset.purchase_price * (asset.depreciation_rate / 100);
+          totalDepreciation += annualDepreciation * yearsOwned;
+        }
+      });
+      
+      return { totalVat, totalDepreciation };
+    } catch (error) {
+      console.error('Error calculating asset financials:', error);
+      return { totalVat: 0, totalDepreciation: 0 };
+    }
+  };
+
+  const handleViewReport = async (reportType: string) => {
     // Navigate to specific report pages
     if (reportType === "Income Statement" && onNavigate) {
       onNavigate("income-statement");
@@ -136,6 +172,9 @@ export const FinancialReports = ({ username, onBack, onLogout, onNavigate }: Fin
     
     switch(reportType) {
       case "Income Statement":
+        // Calculate asset financials
+        const incomeAssetFinancials = await calculateAssetFinancials();
+        
         // Use detailed income statement structure
         reportData = {
           title: "Income Statement",
@@ -145,19 +184,38 @@ export const FinancialReports = ({ username, onBack, onLogout, onNavigate }: Fin
             { name: "2. Cost of Goods Sold (COGS)", value: mockIncomeData.cogs },
             { name: "= Gross Profit", value: mockIncomeData.grossProfit },
             { name: "3. Operating Expenses", value: mockIncomeData.operatingExpenses },
-            { name: "= Operating Profit", value: mockIncomeData.operatingProfit },
-            { name: "4. Other Income / Expenses", value: mockIncomeData.otherIncomeExpenses },
-            { name: "5. Tax (Income Tax)", value: mockIncomeData.tax },
-            { name: "= Net Profit", value: mockIncomeData.netProfit }
+            { name: "4. Depreciation Expense", value: incomeAssetFinancials.totalDepreciation },
+            { name: "= Operating Profit", value: mockIncomeData.operatingProfit - incomeAssetFinancials.totalDepreciation },
+            { name: "5. Other Income / Expenses", value: mockIncomeData.otherIncomeExpenses },
+            { name: "6. VAT Payable", value: incomeAssetFinancials.totalVat },
+            { name: "7. Tax (Income Tax)", value: mockIncomeData.tax },
+            { name: "= Net Profit", value: mockIncomeData.netProfit - incomeAssetFinancials.totalDepreciation - incomeAssetFinancials.totalVat }
           ]
         };
         break;
       case "Balance Sheet":
+        // Calculate asset financials
+        const balanceAssetFinancials = await calculateAssetFinancials();
+        
+        // Calculate total asset value considering depreciation
+        const assets = await getAssets();
+        let totalAssetValue = 0;
+        let totalDepreciatedValue = 0;
+        
+        assets.forEach(asset => {
+          if (asset.status === 'active') {
+            totalAssetValue += asset.purchase_price;
+            totalDepreciatedValue += asset.current_value;
+          }
+        });
+        
         reportData = {
           title: "Balance Sheet",
           period: mockBalanceData.period,
           data: [
-            { name: "Total Assets", value: mockBalanceData.assets },
+            { name: "Total Assets (Book Value)", value: totalAssetValue },
+            { name: "Accumulated Depreciation", value: totalAssetValue - totalDepreciatedValue },
+            { name: "Net Assets", value: totalDepreciatedValue },
             { name: "Total Liabilities", value: mockBalanceData.liabilities },
             { name: "Total Equity", value: mockBalanceData.equity }
           ]

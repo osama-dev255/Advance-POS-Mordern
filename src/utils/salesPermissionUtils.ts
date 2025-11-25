@@ -92,8 +92,12 @@ export const getCurrentUserRole = async (): Promise<string | null> => {
  * @returns boolean - True if user has access, false otherwise
  */
 export const hasModuleAccess = (role: string | null, module: string): boolean => {
+  console.log("hasModuleAccess called with role:", role, "module:", module);
   // If no role is provided, deny access
-  if (!role) return false;
+  if (!role) {
+    console.log("No role provided, denying access to module:", module);
+    return false;
+  }
   
   // Define access permissions by role
   const rolePermissions: Record<string, string[]> = {
@@ -129,5 +133,7 @@ export const hasModuleAccess = (role: string | null, module: string): boolean =>
   };
   
   // Check if the role exists and has access to the module
-  return rolePermissions[role]?.includes(module) || false;
+  const hasAccess = rolePermissions[role]?.includes(module) || false;
+  console.log("Role", role, "has access to module", module, ":", hasAccess);
+  return hasAccess;
 };

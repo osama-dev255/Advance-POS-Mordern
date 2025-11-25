@@ -371,6 +371,8 @@ CREATE TABLE IF NOT EXISTS assets (
   current_value DECIMAL(10,2) NOT NULL,
   depreciation_rate DECIMAL(5,2) DEFAULT 0.00,
   estimated_lifespan INTEGER, -- in years
+  vat_rate DECIMAL(5,2) DEFAULT NULL, -- VAT rate at time of purchase
+  vat_amount DECIMAL(10,2) DEFAULT NULL, -- VAT amount at time of purchase
   status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'sold', 'disposed', 'lost')),
   serial_number VARCHAR(100),
   location VARCHAR(255),
@@ -387,6 +389,9 @@ CREATE TABLE IF NOT EXISTS asset_transactions (
   transaction_type VARCHAR(20) NOT NULL CHECK (transaction_type IN ('purchase', 'sale', 'disposal', 'adjustment')),
   transaction_date DATE NOT NULL,
   amount DECIMAL(10,2) NOT NULL,
+  vat_rate DECIMAL(5,2) DEFAULT NULL, -- VAT rate for this transaction
+  vat_amount DECIMAL(10,2) DEFAULT NULL, -- VAT amount for this transaction
+  net_amount DECIMAL(10,2) DEFAULT NULL, -- Amount excluding VAT
   description TEXT,
   buyer_seller VARCHAR(255),
   reference_number VARCHAR(100),
@@ -403,6 +408,17 @@ CREATE INDEX IF NOT EXISTS idx_asset_transactions_asset ON asset_transactions(as
 CREATE INDEX IF NOT EXISTS idx_asset_transactions_user ON asset_transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_asset_transactions_type ON asset_transactions(transaction_type);
 CREATE INDEX IF NOT EXISTS idx_asset_transactions_date ON asset_transactions(transaction_date);
+
+-- Add VAT and depreciation columns to existing assets table
+ALTER TABLE assets 
+ADD COLUMN IF NOT EXISTS vat_rate DECIMAL(5,2) DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS vat_amount DECIMAL(10,2) DEFAULT NULL;
+
+-- Add VAT columns to existing asset_transactions table
+ALTER TABLE asset_transactions 
+ADD COLUMN IF NOT EXISTS vat_rate DECIMAL(5,2) DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS vat_amount DECIMAL(10,2) DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS net_amount DECIMAL(10,2) DEFAULT NULL;
 
 -- Insert sample data for initial setup
 INSERT INTO categories (name, description) VALUES 

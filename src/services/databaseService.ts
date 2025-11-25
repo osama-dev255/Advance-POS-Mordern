@@ -2772,6 +2772,8 @@ export interface Asset {
   current_value: number;
   depreciation_rate: number | null;
   estimated_lifespan: number | null;
+  vat_rate: number | null; // VAT rate at time of purchase
+  vat_amount: number | null; // VAT amount at time of purchase
   status: 'active' | 'sold' | 'disposed' | 'lost';
   serial_number: string | null;
   location: string | null;
@@ -2787,6 +2789,9 @@ export interface AssetTransaction {
   transaction_type: 'purchase' | 'sale' | 'disposal' | 'adjustment';
   transaction_date: string;
   amount: number;
+  vat_rate: number | null; // VAT rate for this transaction
+  vat_amount: number | null; // VAT amount for this transaction
+  net_amount: number | null; // Amount excluding VAT
   description: string | null;
   buyer_seller: string | null;
   reference_number: string | null;
