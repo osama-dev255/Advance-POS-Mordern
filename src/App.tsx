@@ -16,6 +16,7 @@ import { TestQRCode } from "./pages/TestQRCode";
 import { TestReceiptQR } from "./pages/TestReceiptQR";
 import { QRDebugTest } from "./pages/QRDebugTest";
 import QRTestPage from "./pages/QRTestPage";
+import TestAssets from "./pages/TestAssets";
 import { useEffect } from "react";
 // Import authentication context
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -25,6 +26,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 // Import Supabase test function
 import { testSupabaseConnection } from "@/services/supabaseService";
 import { testRLSPolicies } from "@/services/databaseService";
+import { testAssetTables } from "@/services/databaseService";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +47,15 @@ const App = () => {
         console.log("RLS policies are correctly configured!");
       } else {
         console.warn("RLS policies need to be configured. Please run the FIX_RLS_POLICIES.sql script in your Supabase SQL editor.");
+      }
+    });
+    
+    // Test asset tables
+    testAssetTables().then((assetsOk) => {
+      if (assetsOk) {
+        console.log("Asset tables are correctly configured!");
+      } else {
+        console.warn("Asset tables need to be configured. Please run the SUPABASE_COMPLETE_SCHEMA.sql script in your Supabase SQL editor.");
       }
     });
   }, []);
@@ -71,6 +82,7 @@ const App = () => {
                 <Route path="/test/receipt-qr" element={<TestReceiptQR />} />
                 <Route path="/test/qr-debug" element={<QRDebugTest />} />
                 <Route path="/test/qr-test" element={<QRTestPage />} />
+                <Route path="/test/assets" element={<TestAssets />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

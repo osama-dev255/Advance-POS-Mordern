@@ -42,9 +42,20 @@ import { IncomeStatement } from "@/pages/IncomeStatement";
 import { AssetsManagement } from "@/pages/AssetsManagement";
 import { CapitalManagement } from "@/pages/CapitalManagement";
 
+import { 
+  createAsset, 
+  createAssetTransaction,
+  getAssets,
+  updateAsset
+} from '@/services/databaseService';
+import { formatCurrency } from '@/lib/currency';
+import { uploadFile } from '@/utils/fileUploadUtils';
+
 export const Index = () => {
   const [currentView, setCurrentView] = useState("splash");
   const [showSplash, setShowSplash] = useState(true);
+  const [assets, setAssets] = useState<any[]>([]);
+  const [loadingAssets, setLoadingAssets] = useState(false);
   const { user, login, logout } = useAuth();
 
   // Show splash screen for 2 seconds
@@ -56,6 +67,27 @@ export const Index = () => {
 
     return () => clearTimeout(timer);
   }, []);
+
+  // Fetch assets when we navigate to sell-assets view
+  useEffect(() => {
+    const fetchAssets = async () => {
+      if (currentView === "sell-assets" && user) {
+        setLoadingAssets(true);
+        try {
+          const fetchedAssets = await getAssets();
+          // Filter for active assets only
+          const activeAssets = fetchedAssets.filter(asset => asset.status === 'active');
+          setAssets(activeAssets);
+        } catch (error) {
+          console.error('Error fetching assets:', error);
+        } finally {
+          setLoadingAssets(false);
+        }
+      }
+    };
+    
+    fetchAssets();
+  }, [currentView, user]);
 
   const handleLogin = async (credentials: { username: string; password: string }) => {
     const { username, password } = credentials;
@@ -261,6 +293,7 @@ export const Index = () => {
   }
 
   console.log("Rendering Index, currentView:", currentView, "user:", user);
+  // Enhanced authentication check - ensure user is authenticated for all views except login and register
   if (currentView === "login" || !user) {
     console.log("Rendering LoginForm");
     return <LoginForm onLogin={handleLogin} onNavigate={handleNavigate} />;
@@ -269,6 +302,29 @@ export const Index = () => {
   if (currentView === "register") {
     console.log("Rendering RegisterPage");
     return <RegisterPage onBack={handleBack} />;
+  }
+
+  // Additional authentication check to ensure user hasn't been logged out
+  if (!user) {
+    console.log("User not authenticated, redirecting to login");
+    setCurrentView("login");
+    return <LoginForm onLogin={handleLogin} onNavigate={handleNavigate} />;
+  }
+
+  // Ensure that we don't render unauthorized views
+  const authorizedViews = [
+    "comprehensive", "dashboard", "sales", "sales-cart", "sales-orders", 
+    "test-sales-orders", "products", "customers", "transactions", "analytics", 
+    "sales-analytics", "spending-analytics", "employees", "purchase", 
+    "purchase-terminal", "purchase-transactions", "purchase-reports", 
+    "suppliers", "purchase-orders", "finance", "reports", "financial-reports",
+    "taxes", "capital", "income-statement", "test", "test-qr", "assets",
+    "purchase-assets", "sell-assets", "capital"
+  ];
+
+  if (!authorizedViews.includes(currentView)) {
+    console.log(`Unauthorized view requested: ${currentView}, redirecting to comprehensive dashboard`);
+    setCurrentView("comprehensive");
   }
 
   // Render with AdvancedLayout for all other views
@@ -598,6 +654,12 @@ export const Index = () => {
               );
             case "purchase-assets":
               console.log("Rendering Purchase Assets page");
+              // Ensure user is authenticated before rendering
+              if (!user) {
+                console.log("User not authenticated for purchase-assets, redirecting to login");
+                setCurrentView("login");
+                return <LoginForm onLogin={handleLogin} onNavigate={handleNavigate} />;
+              }
               return (
                 <div className="min-h-screen bg-background">
                   <header className="border-b">
@@ -624,18 +686,83 @@ export const Index = () => {
                     <div className="max-w-2xl mx-auto">
                       <div className="bg-white rounded-lg shadow-md p-6">
                         <h2 className="text-xl font-semibold mb-4">Asset Purchase Form</h2>
-                        <form className="space-y-4">
+                        <form className="space-y-4" onSubmit={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          
+                          // Get form data
+                          const formData = new FormData(e.target as HTMLFormElement);
+                          const assetData = {
+                            name: formData.get('assetName') as string,
+                            description: formData.get('description') as string || null,
+                            category: formData.get('category') as string || null,
+                            purchase_date: formData.get('purchaseDate') as string || null,
+                            purchase_price: parseFloat(formData.get('purchasePrice') as string),
+                            current_value: parseFloat(formData.get('purchasePrice') as string),
+                            depreciation_rate: 0.00,
+                            estimated_lifespan: parseInt(formData.get('lifespan') as string) || null,
+                            status: 'active' as const,
+                            serial_number: null,
+                            location: formData.get('location') as string || null,
+                            notes: formData.get('notes') as string || null
+                          };
+                          
+                          try {
+                            // Create asset
+                            const createdAsset = await createAsset(assetData);
+                            if (!createdAsset) {
+                              throw new Error('Failed to create asset');
+                            }
+                            
+                            // Handle file upload if provided
+                            let attachmentUrl = null;
+                            const attachmentFile = formData.get('attachment') as File;
+                            if (attachmentFile && attachmentFile.size > 0) {
+                              // Upload the file to Supabase storage
+                              attachmentUrl = await uploadFile(attachmentFile, 'assets', 'purchase_attachments');
+                              if (!attachmentUrl) {
+                                console.warn('Failed to upload attachment file');
+                              }
+                            }
+                            
+                            // Create asset transaction
+                            const transactionData = {
+                              asset_id: createdAsset.id,
+                              transaction_type: 'purchase' as const,
+                              transaction_date: assetData.purchase_date || new Date().toISOString().split('T')[0],
+                              amount: assetData.purchase_price,
+                              description: `Purchase of ${assetData.name}`,
+                              buyer_seller: 'Self',
+                              notes: attachmentUrl || null,
+                              reference_number: null
+                            };
+                            
+                            const createdTransaction = await createAssetTransaction(transactionData);
+                            if (!createdTransaction) {
+                              throw new Error('Failed to create asset transaction');
+                            }
+                            
+                            alert('Asset purchased successfully!');
+                            handleBack();
+                          } catch (error) {
+                            console.error('Error purchasing asset:', error);
+                            alert('Error purchasing asset. Please try again.');
+                          }
+                        }}>
                           <div>
                             <label className="block text-sm font-medium mb-1">Asset Name</label>
                             <input 
                               type="text" 
+                              name="assetName"
                               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                               placeholder="Enter asset name"
+                              required
                             />
                           </div>
                           <div>
                             <label className="block text-sm font-medium mb-1">Description</label>
                             <textarea 
+                              name="description"
                               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                               placeholder="Enter asset description"
                               rows={3}
@@ -646,23 +773,32 @@ export const Index = () => {
                               <label className="block text-sm font-medium mb-1">Purchase Date</label>
                               <input 
                                 type="date" 
+                                name="purchaseDate"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                                required
                               />
                             </div>
                             <div>
                               <label className="block text-sm font-medium mb-1">Purchase Price</label>
                               <input 
                                 type="number" 
+                                name="purchasePrice"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                                 placeholder="Enter purchase price"
                                 step="0.01"
+                                min="0"
+                                required
                               />
                             </div>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <label className="block text-sm font-medium mb-1">Category</label>
-                              <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+                              <select 
+                                name="category"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                                required
+                              >
                                 <option value="">Select category</option>
                                 <option value="equipment">Equipment</option>
                                 <option value="vehicles">Vehicles</option>
@@ -676,11 +812,40 @@ export const Index = () => {
                               <label className="block text-sm font-medium mb-1">Estimated Lifespan (years)</label>
                               <input 
                                 type="number" 
+                                name="lifespan"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                                 placeholder="Enter lifespan"
                                 min="1"
                               />
                             </div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Location</label>
+                            <input 
+                              type="text" 
+                              name="location"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Enter asset location"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Notes</label>
+                            <textarea 
+                              name="notes"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Additional notes about the asset"
+                              rows={3}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Attachment (Receipt, Invoice, etc.)</label>
+                            <input 
+                              type="file"
+                              name="attachment"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              accept="image/*,application/pdf"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Upload receipt, invoice, or other supporting documents</p>
                           </div>
                           <div className="flex justify-end space-x-3 pt-4">
                             <button 
@@ -709,6 +874,48 @@ export const Index = () => {
               );
             case "sell-assets":
               console.log("Rendering Sell Assets page");
+              // Ensure user is authenticated before rendering
+              if (!user) {
+                console.log("User not authenticated for sell-assets, redirecting to login");
+                setCurrentView("login");
+                return <LoginForm onLogin={handleLogin} onNavigate={handleNavigate} />;
+              }
+              
+              // Show loading state
+              if (loadingAssets) {
+                return (
+                  <div className="min-h-screen bg-background">
+                    <header className="border-b">
+                      <div className="container mx-auto px-4 py-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h1 className="text-2xl font-bold">Sell Assets</h1>
+                            <p className="text-muted-foreground">Sell existing business assets</p>
+                          </div>
+                          <button 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleBack();
+                            }}
+                            className="text-primary hover:underline px-4 py-2 border border-primary rounded-md"
+                          >
+                            ← Back to Assets
+                          </button>
+                        </div>
+                      </div>
+                    </header>
+                    <main className="container mx-auto p-4 sm:p-6">
+                      <div className="max-w-2xl mx-auto">
+                        <div className="bg-white rounded-lg shadow-md p-6 text-center">
+                          <p>Loading assets...</p>
+                        </div>
+                      </div>
+                    </main>
+                  </div>
+                );
+              }
+              
               return (
                 <div className="min-h-screen bg-background">
                   <header className="border-b">
@@ -735,15 +942,74 @@ export const Index = () => {
                     <div className="max-w-2xl mx-auto">
                       <div className="bg-white rounded-lg shadow-md p-6">
                         <h2 className="text-xl font-semibold mb-4">Asset Sale Form</h2>
-                        <form className="space-y-4">
+                        <form className="space-y-4" onSubmit={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          
+                          // Get form data
+                          const formData = new FormData(e.target as HTMLFormElement);
+                          const transactionData = {
+                            asset_id: formData.get('assetId') as string,
+                            transaction_type: 'sale' as const,
+                            transaction_date: formData.get('saleDate') as string,
+                            amount: parseFloat(formData.get('salePrice') as string),
+                            description: formData.get('description') as string || null,
+                            buyer_seller: formData.get('buyer') as string,
+                            notes: formData.get('notes') as string || null,
+                            reference_number: null
+                          };
+                          
+                          try {
+                            // Handle file upload if provided
+                            let attachmentUrl = null;
+                            const attachmentFile = formData.get('attachment') as File;
+                            if (attachmentFile && attachmentFile.size > 0) {
+                              // Upload the file to Supabase storage
+                              attachmentUrl = await uploadFile(attachmentFile, 'assets', 'sale_attachments');
+                              if (!attachmentUrl) {
+                                console.warn('Failed to upload attachment file');
+                              }
+                            }
+                            
+                            // Add attachment URL to transaction notes if available
+                            if (attachmentUrl) {
+                              transactionData.notes = transactionData.notes 
+                                ? `${transactionData.notes} | Attachment: ${attachmentUrl}`
+                                : `Attachment: ${attachmentUrl}`;
+                            }
+                            
+                            // Create asset transaction
+                            const createdTransaction = await createAssetTransaction(transactionData);
+                            if (!createdTransaction) {
+                              throw new Error('Failed to create asset transaction');
+                            }
+                            
+                            // Update asset status to 'sold'
+                            const updatedAsset = await updateAsset(transactionData.asset_id, { status: 'sold' });
+                            if (!updatedAsset) {
+                              console.warn('Failed to update asset status to sold');
+                            }
+                            
+                            alert('Asset sold successfully!');
+                            handleBack();
+                          } catch (error) {
+                            console.error('Error selling asset:', error);
+                            alert('Error selling asset. Please try again.');
+                          }
+                        }}>
                           <div>
                             <label className="block text-sm font-medium mb-1">Select Asset</label>
-                            <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+                            <select 
+                              name="assetId"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              required
+                            >
                               <option value="">Select an asset to sell</option>
-                              <option value="1">Office Computer - $1,200</option>
-                              <option value="2">Delivery Van - $15,000</option>
-                              <option value="3">Office Desk - $300</option>
-                              <option value="4">Printer - $250</option>
+                              {assets.map(asset => (
+                                <option key={asset.id} value={asset.id}>
+                                  {asset.name} - {formatCurrency(asset.current_value)}
+                                </option>
+                              ))}
                             </select>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -751,16 +1017,21 @@ export const Index = () => {
                               <label className="block text-sm font-medium mb-1">Sale Date</label>
                               <input 
                                 type="date" 
+                                name="saleDate"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                                required
                               />
                             </div>
                             <div>
                               <label className="block text-sm font-medium mb-1">Sale Price</label>
                               <input 
                                 type="number" 
+                                name="salePrice"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                                 placeholder="Enter sale price"
                                 step="0.01"
+                                min="0"
+                                required
                               />
                             </div>
                           </div>
@@ -768,17 +1039,39 @@ export const Index = () => {
                             <label className="block text-sm font-medium mb-1">Buyer Information</label>
                             <input 
                               type="text" 
+                              name="buyer"
                               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                               placeholder="Enter buyer name or company"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Description</label>
+                            <textarea 
+                              name="description"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Enter sale description"
+                              rows={2}
                             />
                           </div>
                           <div>
                             <label className="block text-sm font-medium mb-1">Notes</label>
                             <textarea 
+                              name="notes"
                               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                               placeholder="Additional notes about the sale"
                               rows={3}
                             />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Attachment (Receipt, Invoice, etc.)</label>
+                            <input 
+                              type="file"
+                              name="attachment"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              accept="image/*,application/pdf"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Upload receipt, invoice, or other supporting documents</p>
                           </div>
                           <div className="flex justify-end space-x-3 pt-4">
                             <button 

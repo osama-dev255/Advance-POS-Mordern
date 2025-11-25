@@ -107,6 +107,9 @@ export const TestPage = () => {
               <Link to="/test/qr-debug">
                 <Button variant="outline">QR Debug Test</Button>
               </Link>
+              <Link to="/test/assets">
+                <Button variant="outline">Assets Management Test</Button>
+              </Link>
             </div>
           </CardContent>
         </Card>

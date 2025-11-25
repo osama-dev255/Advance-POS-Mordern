@@ -1913,7 +1913,6 @@ export const getLowStockProducts = async (threshold: number = 10): Promise<Produ
       .select('*')
       .lt('stock_quantity', threshold)
       .order('stock_quantity', { ascending: true });
-      
     if (error) throw error;
     return data || [];
   } catch (error) {
@@ -2669,20 +2668,6 @@ export const updateReturnItem = async (id: string, returnItem: Partial<ReturnIte
   }
 };
 
-export const deleteReturnItem = async (id: string): Promise<boolean> => {
-  try {
-    const { error } = await supabase
-      .from('return_items')
-      .delete()
-      .eq('id', id);
-      
-    if (error) throw error;
-    return true;
-  } catch (error) {
-    console.error('Error deleting return item:', error);
-    return false;
-  }
-};
 
 // Tax Records CRUD operations
 export const getTaxRecords = async (): Promise<TaxRecord[]> => {
@@ -2775,3 +2760,269 @@ export const deleteTaxRecord = async (id: string): Promise<boolean> => {
   }
 };
 
+// Define the Asset and AssetTransaction types
+export interface Asset {
+  id: string;
+  user_id: string | null;
+  name: string;
+  description: string | null;
+  category: string | null;
+  purchase_date: string | null;
+  purchase_price: number;
+  current_value: number;
+  depreciation_rate: number | null;
+  estimated_lifespan: number | null;
+  status: 'active' | 'sold' | 'disposed' | 'lost';
+  serial_number: string | null;
+  location: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AssetTransaction {
+  id: string;
+  asset_id: string;
+  user_id: string | null;
+  transaction_type: 'purchase' | 'sale' | 'disposal' | 'adjustment';
+  transaction_date: string;
+  amount: number;
+  description: string | null;
+  buyer_seller: string | null;
+  reference_number: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Asset CRUD operations
+export const getAssets = async (): Promise<Asset[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('assets')
+      .select('*')
+      .order('purchase_date', { ascending: false });
+      
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching assets:', error);
+    return [];
+  }
+};
+
+export const getAssetById = async (id: string): Promise<Asset | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('assets')
+      .select('*')
+      .eq('id', id)
+      .single();
+      
+    if (error) throw error;
+    return data || null;
+  } catch (error) {
+    console.error('Error fetching asset:', error);
+    return null;
+  }
+};
+
+export const createAsset = async (asset: Omit<Asset, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<Asset | null> => {
+  try {
+    // Get the current user ID from Supabase auth
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Add the user_id to the asset data
+    const assetWithUser = {
+      ...asset,
+      user_id: user?.id || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    const { data, error } = await supabase
+      .from('assets')
+      .insert([assetWithUser])
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data || null;
+  } catch (error) {
+    console.error('Error creating asset:', error);
+    return null;
+  }
+};
+
+export const updateAsset = async (id: string, asset: Partial<Asset>): Promise<Asset | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('assets')
+      .update({ ...asset, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data || null;
+  } catch (error) {
+    console.error('Error updating asset:', error);
+    return null;
+  }
+};
+
+export const deleteAsset = async (id: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('assets')
+      .delete()
+      .eq('id', id);
+      
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting asset:', error);
+    return false;
+  }
+};
+
+// Asset Transaction CRUD operations
+export const getAssetTransactions = async (): Promise<AssetTransaction[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('asset_transactions')
+      .select('*')
+      .order('transaction_date', { ascending: false });
+      
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching asset transactions:', error);
+    return [];
+  }
+};
+
+export const getAssetTransactionById = async (id: string): Promise<AssetTransaction | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('asset_transactions')
+      .select('*')
+      .eq('id', id)
+      .single();
+      
+    if (error) throw error;
+    return data || null;
+  } catch (error) {
+    console.error('Error fetching asset transaction:', error);
+    return null;
+  }
+};
+
+export const createAssetTransaction = async (transaction: Omit<AssetTransaction, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<AssetTransaction | null> => {
+  try {
+    // Get the current user ID from Supabase auth
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Add the user_id to the transaction data
+    const transactionWithUser = {
+      ...transaction,
+      user_id: user?.id || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    const { data, error } = await supabase
+      .from('asset_transactions')
+      .insert([transactionWithUser])
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data || null;
+  } catch (error) {
+    console.error('Error creating asset transaction:', error);
+    return null;
+  }
+};
+
+export const updateAssetTransaction = async (id: string, transaction: Partial<AssetTransaction>): Promise<AssetTransaction | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('asset_transactions')
+      .update({ ...transaction, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data || null;
+  } catch (error) {
+    console.error('Error updating asset transaction:', error);
+    return null;
+  }
+};
+
+export const deleteAssetTransaction = async (id: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('asset_transactions')
+      .delete()
+      .eq('id', id);
+      
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting asset transaction:', error);
+    return false;
+  }
+};
+
+// Get asset transactions by asset ID
+export const getAssetTransactionsByAssetId = async (assetId: string): Promise<AssetTransaction[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('asset_transactions')
+      .select('*')
+      .eq('asset_id', assetId)
+      .order('transaction_date', { ascending: false });
+      
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching asset transactions by asset ID:', error);
+    return [];
+  }
+};
+
+// Test function to verify asset tables exist and are accessible
+export const testAssetTables = async (): Promise<boolean> => {
+  try {
+    // Test assets table
+    const { error: assetError } = await supabase
+      .from('assets')
+      .select('id')
+      .limit(1);
+      
+    if (assetError) {
+      console.error('Assets table error:', assetError);
+      return false;
+    }
+    
+    // Test asset_transactions table
+    const { error: transactionError } = await supabase
+      .from('asset_transactions')
+      .select('id')
+      .limit(1);
+      
+    if (transactionError) {
+      console.error('Asset transactions table error:', transactionError);
+      return false;
+    }
+    
+    console.log('Asset tables are accessible');
+    return true;
+  } catch (error) {
+    console.error('Error testing asset tables:', error);
+    return false;
+  }
+};

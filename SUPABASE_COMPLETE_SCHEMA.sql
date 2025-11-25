@@ -358,6 +358,52 @@ CREATE INDEX IF NOT EXISTS idx_reports_type ON reports(report_type);
 CREATE INDEX IF NOT EXISTS idx_access_logs_user ON access_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_access_logs_date ON access_logs(created_at);
 
+-- Add asset management tables after the existing tables
+-- 23. Assets
+CREATE TABLE IF NOT EXISTS assets (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  category VARCHAR(100),
+  purchase_date DATE,
+  purchase_price DECIMAL(10,2) NOT NULL,
+  current_value DECIMAL(10,2) NOT NULL,
+  depreciation_rate DECIMAL(5,2) DEFAULT 0.00,
+  estimated_lifespan INTEGER, -- in years
+  status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'sold', 'disposed', 'lost')),
+  serial_number VARCHAR(100),
+  location VARCHAR(255),
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 24. Asset Transactions (purchases, sales, disposals)
+CREATE TABLE IF NOT EXISTS asset_transactions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  asset_id UUID REFERENCES assets(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  transaction_type VARCHAR(20) NOT NULL CHECK (transaction_type IN ('purchase', 'sale', 'disposal', 'adjustment')),
+  transaction_date DATE NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  description TEXT,
+  buyer_seller VARCHAR(255),
+  reference_number VARCHAR(100),
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for asset tables
+CREATE INDEX IF NOT EXISTS idx_assets_user ON assets(user_id);
+CREATE INDEX IF NOT EXISTS idx_assets_category ON assets(category);
+CREATE INDEX IF NOT EXISTS idx_assets_status ON assets(status);
+CREATE INDEX IF NOT EXISTS idx_asset_transactions_asset ON asset_transactions(asset_id);
+CREATE INDEX IF NOT EXISTS idx_asset_transactions_user ON asset_transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_asset_transactions_type ON asset_transactions(transaction_type);
+CREATE INDEX IF NOT EXISTS idx_asset_transactions_date ON asset_transactions(transaction_date);
+
 -- Insert sample data for initial setup
 INSERT INTO categories (name, description) VALUES 
   ('Electronics', 'Electronic devices and accessories'),
@@ -377,11 +423,22 @@ INSERT INTO users (username, email, first_name, last_name, role, is_active) VALU
   ('cashier1', 'cashier1@pos.com', 'Cashier', 'One', 'cashier', true),
   ('cashier2', 'cashier2@pos.com', 'Cashier', 'Two', 'cashier', true);
 
--- Insert sample products
-INSERT INTO products (name, category_id, barcode, sku, selling_price, cost_price, stock_quantity) VALUES 
-  ('Wireless Headphones', (SELECT id FROM categories WHERE name = 'Electronics'), '123456789012', 'WH-001', 99.99, 45.00, 25),
-  ('Coffee Maker', (SELECT id FROM categories WHERE name = 'Home & Garden'), '234567890123', 'CM-002', 79.99, 35.00, 15),
-  ('Running Shoes', (SELECT id FROM categories WHERE name = 'Sports & Outdoors'), '345678901234', 'RS-003', 129.99, 65.00, 30);
+-- Insert sample products (using DO block to handle subquery safely)
+DO $$
+DECLARE
+  electronics_id UUID;
+  home_garden_id UUID;
+  sports_outdoors_id UUID;
+BEGIN
+  SELECT id INTO electronics_id FROM categories WHERE name = 'Electronics' LIMIT 1;
+  SELECT id INTO home_garden_id FROM categories WHERE name = 'Home & Garden' LIMIT 1;
+  SELECT id INTO sports_outdoors_id FROM categories WHERE name = 'Sports & Outdoors' LIMIT 1;
+  
+  INSERT INTO products (name, category_id, barcode, sku, selling_price, cost_price, stock_quantity) VALUES 
+    ('Wireless Headphones', electronics_id, '123456789012', 'WH-001', 99.99, 45.00, 25),
+    ('Coffee Maker', home_garden_id, '234567890123', 'CM-002', 79.99, 35.00, 15),
+    ('Running Shoes', sports_outdoors_id, '345678901234', 'RS-003', 129.99, 65.00, 30);
+END $$;
 
 -- Insert sample customers
 INSERT INTO customers (first_name, last_name, email, phone) VALUES 

@@ -8,6 +8,7 @@ import {
   PiggyBank
 } from "lucide-react";
 import { DashboardCard } from "@/components/DashboardCard";
+import { formatCurrency } from "@/lib/currency";
 
 interface CapitalManagementProps {
   username: string;
@@ -66,7 +67,7 @@ export const CapitalManagement = ({ username, onBack, onLogout }: CapitalManagem
               <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$125,430.00</div>
+              <div className="text-2xl font-bold">{formatCurrency(125430)}</div>
               <p className="text-xs text-muted-foreground">+12.5% from last month</p>
             </CardContent>
           </Card>
@@ -78,7 +79,7 @@ export const CapitalManagement = ({ username, onBack, onLogout }: CapitalManagem
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$98,200.00</div>
+              <div className="text-2xl font-bold">{formatCurrency(98200)}</div>
               <p className="text-xs text-muted-foreground">+8.2% from last month</p>
             </CardContent>
           </Card>
@@ -90,7 +91,7 @@ export const CapitalManagement = ({ username, onBack, onLogout }: CapitalManagem
               <PiggyBank className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$27,230.00</div>
+              <div className="text-2xl font-bold">{formatCurrency(27230)}</div>
               <p className="text-xs text-muted-foreground">+2.3% from last month</p>
             </CardContent>
           </Card>
