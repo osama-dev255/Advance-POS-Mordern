@@ -68,15 +68,17 @@ export const Index = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Fetch assets when we navigate to sell-assets view
+  // Fetch assets when we navigate to asset-related views
   useEffect(() => {
     const fetchAssets = async () => {
-      if (currentView === "sell-assets" && user) {
+      if ((currentView === "sell-assets" || currentView === "dispose-assets" || currentView === "adjust-assets") && user) {
         setLoadingAssets(true);
         try {
           const fetchedAssets = await getAssets();
-          // Filter for active assets only
-          const activeAssets = fetchedAssets.filter(asset => asset.status === 'active');
+          // Filter for active assets only for sell and dispose views
+          const activeAssets = (currentView === "adjust-assets") 
+            ? fetchedAssets  // For adjustment, show all assets
+            : fetchedAssets.filter(asset => asset.status === 'active');
           setAssets(activeAssets);
         } catch (error) {
           console.error('Error fetching assets:', error);
@@ -275,6 +277,8 @@ export const Index = () => {
         break;
       case "purchase-assets":
       case "sell-assets":
+      case "dispose-assets":
+      case "adjust-assets":
         setCurrentView("assets");
         break;
       default:
@@ -319,7 +323,7 @@ export const Index = () => {
     "purchase-terminal", "purchase-transactions", "purchase-reports", 
     "suppliers", "purchase-orders", "finance", "reports", "financial-reports",
     "taxes", "capital", "income-statement", "test", "test-qr", "assets",
-    "purchase-assets", "sell-assets", "capital"
+    "purchase-assets", "sell-assets", "dispose-assets", "adjust-assets", "capital"
   ];
 
   if (!authorizedViews.includes(currentView)) {
@@ -1098,6 +1102,420 @@ export const Index = () => {
                   </main>
                 </div>
               );
+            case "dispose-assets":
+              console.log("Rendering Dispose Assets page");
+              // Ensure user is authenticated before rendering
+              if (!user) {
+                console.log("User not authenticated for dispose-assets, redirecting to login");
+                setCurrentView("login");
+                return <LoginForm onLogin={handleLogin} onNavigate={handleNavigate} />;
+              }
+              
+              return (
+                <div className="min-h-screen bg-background">
+                  <header className="border-b">
+                    <div className="container mx-auto px-4 py-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h1 className="text-2xl font-bold">Dispose Assets</h1>
+                          <p className="text-muted-foreground">Dispose of business assets that are no longer useful</p>
+                        </div>
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleBack();
+                          }}
+                          className="text-primary hover:underline px-4 py-2 border border-primary rounded-md"
+                        >
+                          ← Back to Assets
+                        </button>
+                      </div>
+                    </div>
+                  </header>
+                  <main className="container mx-auto p-4 sm:p-6">
+                    <div className="max-w-2xl mx-auto">
+                      <div className="bg-white rounded-lg shadow-md p-6">
+                        <h2 className="text-xl font-semibold mb-4">Asset Disposal Form</h2>
+                        <form className="space-y-4" onSubmit={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          
+                          // Get form data
+                          const formData = new FormData(e.target as HTMLFormElement);
+                          const transactionData = {
+                            asset_id: formData.get('assetId') as string,
+                            transaction_type: 'disposal' as const,
+                            transaction_date: formData.get('disposalDate') as string,
+                            amount: parseFloat(formData.get('disposalValue') as string) || 0,
+                            description: formData.get('description') as string || null,
+                            buyer_seller: formData.get('recipient') as string || null,
+                            notes: formData.get('notes') as string || null,
+                            reference_number: null
+                          };
+                          
+                          try {
+                            // Handle file upload if provided
+                            let attachmentUrl = null;
+                            const attachmentFile = formData.get('attachment') as File;
+                            if (attachmentFile && attachmentFile.size > 0) {
+                              // Upload the file to Supabase storage
+                              attachmentUrl = await uploadFile(attachmentFile, 'assets', 'disposal_attachments');
+                              if (!attachmentUrl) {
+                                console.warn('Failed to upload attachment file');
+                              }
+                            }
+                            
+                            // Add attachment URL to transaction notes if available
+                            if (attachmentUrl) {
+                              transactionData.notes = transactionData.notes 
+                                ? `${transactionData.notes} | Attachment: ${attachmentUrl}`
+                                : `Attachment: ${attachmentUrl}`;
+                            }
+                            
+                            // Create asset transaction
+                            const createdTransaction = await createAssetTransaction(transactionData);
+                            if (!createdTransaction) {
+                              throw new Error('Failed to create asset transaction');
+                            }
+                            
+                            // Update asset status to 'disposed'
+                            const updatedAsset = await updateAsset(transactionData.asset_id, { status: 'disposed' });
+                            if (!updatedAsset) {
+                              console.warn('Failed to update asset status to disposed');
+                            }
+                            
+                            alert('Asset disposed successfully!');
+                            handleBack();
+                          } catch (error) {
+                            console.error('Error disposing asset:', error);
+                            alert('Error disposing asset. Please try again.');
+                          }
+                        }}>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Select Asset</label>
+                            <select 
+                              name="assetId"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              required
+                            >
+                              <option value="">Select an asset to dispose</option>
+                              {assets.map(asset => (
+                                <option key={asset.id} value={asset.id}>
+                                  {asset.name} - {formatCurrency(asset.current_value)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Disposal Date</label>
+                              <input 
+                                type="date" 
+                                name="disposalDate"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Disposal Value</label>
+                              <input 
+                                type="number" 
+                                name="disposalValue"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                                placeholder="Enter disposal value (if any)"
+                                step="0.01"
+                                min="0"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Recipient Information</label>
+                            <input 
+                              type="text" 
+                              name="recipient"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Enter recipient name or organization (if applicable)"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Description</label>
+                            <textarea 
+                              name="description"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Enter disposal reason or description"
+                              rows={2}
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Notes</label>
+                            <textarea 
+                              name="notes"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Additional notes about the disposal"
+                              rows={3}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Attachment (Receipt, Documentation, etc.)</label>
+                            <input 
+                              type="file"
+                              name="attachment"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              accept="image/*,application/pdf"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Upload disposal documentation or other supporting documents</p>
+                          </div>
+                          <div className="flex justify-end space-x-3 pt-4">
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleBack();
+                              }}
+                              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              type="submit"
+                              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
+                            >
+                              Dispose Asset
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </main>
+                </div>
+              );
+            case "adjust-assets":
+              console.log("Rendering Adjust Assets page");
+              // Ensure user is authenticated before rendering
+              if (!user) {
+                console.log("User not authenticated for adjust-assets, redirecting to login");
+                setCurrentView("login");
+                return <LoginForm onLogin={handleLogin} onNavigate={handleNavigate} />;
+              }
+              
+              return (
+                <div className="min-h-screen bg-background">
+                  <header className="border-b">
+                    <div className="container mx-auto px-4 py-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h1 className="text-2xl font-bold">Adjust Assets</h1>
+                          <p className="text-muted-foreground">Adjust asset values and statuses</p>
+                        </div>
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleBack();
+                          }}
+                          className="text-primary hover:underline px-4 py-2 border border-primary rounded-md"
+                        >
+                          ← Back to Assets
+                        </button>
+                      </div>
+                    </div>
+                  </header>
+                  <main className="container mx-auto p-4 sm:p-6">
+                    <div className="max-w-2xl mx-auto">
+                      <div className="bg-white rounded-lg shadow-md p-6">
+                        <h2 className="text-xl font-semibold mb-4">Asset Adjustment Form</h2>
+                        <form className="space-y-4" onSubmit={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          
+                          // Get form data
+                          const formData = new FormData(e.target as HTMLFormElement);
+                          const assetId = formData.get('assetId') as string;
+                          const adjustmentType = formData.get('adjustmentType') as string;
+                          
+                          try {
+                            // Handle file upload if provided
+                            let attachmentUrl = null;
+                            const attachmentFile = formData.get('attachment') as File;
+                            if (attachmentFile && attachmentFile.size > 0) {
+                              // Upload the file to Supabase storage
+                              attachmentUrl = await uploadFile(attachmentFile, 'assets', 'adjustment_attachments');
+                              if (!attachmentUrl) {
+                                console.warn('Failed to upload attachment file');
+                              }
+                            }
+                            
+                            let updatedAsset = null;
+                            let transactionData = null;
+                            
+                            if (adjustmentType === 'value') {
+                              // Update asset value
+                              const newCurrentValue = parseFloat(formData.get('newValue') as string);
+                              const notes = formData.get('notes') as string || null;
+                              
+                              updatedAsset = await updateAsset(assetId, { 
+                                current_value: newCurrentValue,
+                                notes: notes || null
+                              });
+                              
+                              // Create adjustment transaction
+                              transactionData = {
+                                asset_id: assetId,
+                                transaction_type: 'adjustment' as const,
+                                transaction_date: formData.get('adjustmentDate') as string,
+                                amount: newCurrentValue,
+                                description: `Value adjustment to ${formatCurrency(newCurrentValue)}`,
+                                buyer_seller: null,
+                                notes: attachmentUrl || notes || null,
+                                reference_number: null
+                              };
+                            } else if (adjustmentType === 'status') {
+                              // Update asset status
+                              const newStatus = formData.get('newStatus') as 'active' | 'sold' | 'disposed' | 'lost';
+                              const notes = formData.get('notes') as string || null;
+                              
+                              updatedAsset = await updateAsset(assetId, { 
+                                status: newStatus,
+                                notes: notes || null
+                              });
+                              
+                              // Create adjustment transaction
+                              transactionData = {
+                                asset_id: assetId,
+                                transaction_type: 'adjustment' as const,
+                                transaction_date: formData.get('adjustmentDate') as string,
+                                amount: 0,
+                                description: `Status adjustment to ${newStatus}`,
+                                buyer_seller: null,
+                                notes: attachmentUrl || notes || null,
+                                reference_number: null
+                              };
+                            } else if (adjustmentType === 'depreciation') {
+                              // Update depreciation rate
+                              const newDepreciationRate = parseFloat(formData.get('newDepreciationRate') as string);
+                              const notes = formData.get('notes') as string || null;
+                              
+                              updatedAsset = await updateAsset(assetId, { 
+                                depreciation_rate: newDepreciationRate,
+                                notes: notes || null
+                              });
+                              
+                              // Create adjustment transaction
+                              transactionData = {
+                                asset_id: assetId,
+                                transaction_type: 'adjustment' as const,
+                                transaction_date: formData.get('adjustmentDate') as string,
+                                amount: newDepreciationRate,
+                                description: `Depreciation rate adjustment to ${newDepreciationRate}%`,
+                                buyer_seller: null,
+                                notes: attachmentUrl || notes || null,
+                                reference_number: null
+                              };
+                            }
+                            
+                            if (!updatedAsset) {
+                              throw new Error('Failed to update asset');
+                            }
+                            
+                            // Create asset transaction if transactionData exists
+                            if (transactionData) {
+                              const createdTransaction = await createAssetTransaction(transactionData);
+                              if (!createdTransaction) {
+                                console.warn('Failed to create asset transaction');
+                              }
+                            }
+                            
+                            alert('Asset adjusted successfully!');
+                            handleBack();
+                          } catch (error) {
+                            console.error('Error adjusting asset:', error);
+                            alert('Error adjusting asset. Please try again.');
+                          }
+                        }}>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Select Asset</label>
+                            <select 
+                              name="assetId"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              required
+                            >
+                              <option value="">Select an asset to adjust</option>
+                              {assets.map(asset => (
+                                <option key={asset.id} value={asset.id}>
+                                  {asset.name} - {formatCurrency(asset.current_value)} ({asset.status})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Adjustment Type</label>
+                            <select 
+                              name="adjustmentType"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              required
+                            >
+                              <option value="">Select adjustment type</option>
+                              <option value="value">Value Adjustment</option>
+                              <option value="status">Status Adjustment</option>
+                              <option value="depreciation">Depreciation Rate Adjustment</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Adjustment Date</label>
+                            <input 
+                              type="date" 
+                              name="adjustmentDate"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Notes</label>
+                            <textarea 
+                              name="notes"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Reason for adjustment or additional notes"
+                              rows={3}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Attachment (Documentation, etc.)</label>
+                            <input 
+                              type="file"
+                              name="attachment"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              accept="image/*,application/pdf"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Upload supporting documentation for the adjustment</p>
+                          </div>
+                          <div className="flex justify-end space-x-3 pt-4">
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleBack();
+                              }}
+                              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              type="submit"
+                              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
+                            >
+                              Adjust Asset
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </main>
+                </div>
+              );
             case "capital":
               console.log("Rendering CapitalManagement");
               return (
@@ -1106,6 +1524,420 @@ export const Index = () => {
                   onBack={handleBack}
                   onLogout={handleLogout}
                 />
+              );
+            case "dispose-assets":
+              console.log("Rendering Dispose Assets page");
+              // Ensure user is authenticated before rendering
+              if (!user) {
+                console.log("User not authenticated for dispose-assets, redirecting to login");
+                setCurrentView("login");
+                return <LoginForm onLogin={handleLogin} onNavigate={handleNavigate} />;
+              }
+              
+              return (
+                <div className="min-h-screen bg-background">
+                  <header className="border-b">
+                    <div className="container mx-auto px-4 py-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h1 className="text-2xl font-bold">Dispose Assets</h1>
+                          <p className="text-muted-foreground">Dispose of business assets that are no longer useful</p>
+                        </div>
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleBack();
+                          }}
+                          className="text-primary hover:underline px-4 py-2 border border-primary rounded-md"
+                        >
+                          ← Back to Assets
+                        </button>
+                      </div>
+                    </div>
+                  </header>
+                  <main className="container mx-auto p-4 sm:p-6">
+                    <div className="max-w-2xl mx-auto">
+                      <div className="bg-white rounded-lg shadow-md p-6">
+                        <h2 className="text-xl font-semibold mb-4">Asset Disposal Form</h2>
+                        <form className="space-y-4" onSubmit={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          
+                          // Get form data
+                          const formData = new FormData(e.target as HTMLFormElement);
+                          const transactionData = {
+                            asset_id: formData.get('assetId') as string,
+                            transaction_type: 'disposal' as const,
+                            transaction_date: formData.get('disposalDate') as string,
+                            amount: parseFloat(formData.get('disposalValue') as string) || 0,
+                            description: formData.get('description') as string || null,
+                            buyer_seller: formData.get('recipient') as string || null,
+                            notes: formData.get('notes') as string || null,
+                            reference_number: null
+                          };
+                          
+                          try {
+                            // Handle file upload if provided
+                            let attachmentUrl = null;
+                            const attachmentFile = formData.get('attachment') as File;
+                            if (attachmentFile && attachmentFile.size > 0) {
+                              // Upload the file to Supabase storage
+                              attachmentUrl = await uploadFile(attachmentFile, 'assets', 'disposal_attachments');
+                              if (!attachmentUrl) {
+                                console.warn('Failed to upload attachment file');
+                              }
+                            }
+                            
+                            // Add attachment URL to transaction notes if available
+                            if (attachmentUrl) {
+                              transactionData.notes = transactionData.notes 
+                                ? `${transactionData.notes} | Attachment: ${attachmentUrl}`
+                                : `Attachment: ${attachmentUrl}`;
+                            }
+                            
+                            // Create asset transaction
+                            const createdTransaction = await createAssetTransaction(transactionData);
+                            if (!createdTransaction) {
+                              throw new Error('Failed to create asset transaction');
+                            }
+                            
+                            // Update asset status to 'disposed'
+                            const updatedAsset = await updateAsset(transactionData.asset_id, { status: 'disposed' });
+                            if (!updatedAsset) {
+                              console.warn('Failed to update asset status to disposed');
+                            }
+                            
+                            alert('Asset disposed successfully!');
+                            handleBack();
+                          } catch (error) {
+                            console.error('Error disposing asset:', error);
+                            alert('Error disposing asset. Please try again.');
+                          }
+                        }}>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Select Asset</label>
+                            <select 
+                              name="assetId"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              required
+                            >
+                              <option value="">Select an asset to dispose</option>
+                              {assets.map(asset => (
+                                <option key={asset.id} value={asset.id}>
+                                  {asset.name} - {formatCurrency(asset.current_value)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Disposal Date</label>
+                              <input 
+                                type="date" 
+                                name="disposalDate"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-1">Disposal Value</label>
+                              <input 
+                                type="number" 
+                                name="disposalValue"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                                placeholder="Enter disposal value (if any)"
+                                step="0.01"
+                                min="0"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Recipient Information</label>
+                            <input 
+                              type="text" 
+                              name="recipient"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Enter recipient name or organization (if applicable)"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Description</label>
+                            <textarea 
+                              name="description"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Enter disposal reason or description"
+                              rows={2}
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Notes</label>
+                            <textarea 
+                              name="notes"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Additional notes about the disposal"
+                              rows={3}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Attachment (Receipt, Documentation, etc.)</label>
+                            <input 
+                              type="file"
+                              name="attachment"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              accept="image/*,application/pdf"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Upload disposal documentation or other supporting documents</p>
+                          </div>
+                          <div className="flex justify-end space-x-3 pt-4">
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleBack();
+                              }}
+                              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              type="submit"
+                              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
+                            >
+                              Dispose Asset
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </main>
+                </div>
+              );
+            case "adjust-assets":
+              console.log("Rendering Adjust Assets page");
+              // Ensure user is authenticated before rendering
+              if (!user) {
+                console.log("User not authenticated for adjust-assets, redirecting to login");
+                setCurrentView("login");
+                return <LoginForm onLogin={handleLogin} onNavigate={handleNavigate} />;
+              }
+              
+              return (
+                <div className="min-h-screen bg-background">
+                  <header className="border-b">
+                    <div className="container mx-auto px-4 py-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h1 className="text-2xl font-bold">Adjust Assets</h1>
+                          <p className="text-muted-foreground">Adjust asset values and statuses</p>
+                        </div>
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleBack();
+                          }}
+                          className="text-primary hover:underline px-4 py-2 border border-primary rounded-md"
+                        >
+                          ← Back to Assets
+                        </button>
+                      </div>
+                    </div>
+                  </header>
+                  <main className="container mx-auto p-4 sm:p-6">
+                    <div className="max-w-2xl mx-auto">
+                      <div className="bg-white rounded-lg shadow-md p-6">
+                        <h2 className="text-xl font-semibold mb-4">Asset Adjustment Form</h2>
+                        <form className="space-y-4" onSubmit={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          
+                          // Get form data
+                          const formData = new FormData(e.target as HTMLFormElement);
+                          const assetId = formData.get('assetId') as string;
+                          const adjustmentType = formData.get('adjustmentType') as string;
+                          
+                          try {
+                            // Handle file upload if provided
+                            let attachmentUrl = null;
+                            const attachmentFile = formData.get('attachment') as File;
+                            if (attachmentFile && attachmentFile.size > 0) {
+                              // Upload the file to Supabase storage
+                              attachmentUrl = await uploadFile(attachmentFile, 'assets', 'adjustment_attachments');
+                              if (!attachmentUrl) {
+                                console.warn('Failed to upload attachment file');
+                              }
+                            }
+                            
+                            let updatedAsset = null;
+                            let transactionData = null;
+                            
+                            if (adjustmentType === 'value') {
+                              // Update asset value
+                              const newCurrentValue = parseFloat(formData.get('newValue') as string);
+                              const notes = formData.get('notes') as string || null;
+                              
+                              updatedAsset = await updateAsset(assetId, { 
+                                current_value: newCurrentValue,
+                                notes: notes || null
+                              });
+                              
+                              // Create adjustment transaction
+                              transactionData = {
+                                asset_id: assetId,
+                                transaction_type: 'adjustment' as const,
+                                transaction_date: formData.get('adjustmentDate') as string,
+                                amount: newCurrentValue,
+                                description: `Value adjustment to ${formatCurrency(newCurrentValue)}`,
+                                buyer_seller: null,
+                                notes: attachmentUrl || notes || null,
+                                reference_number: null
+                              };
+                            } else if (adjustmentType === 'status') {
+                              // Update asset status
+                              const newStatus = formData.get('newStatus') as 'active' | 'sold' | 'disposed' | 'lost';
+                              const notes = formData.get('notes') as string || null;
+                              
+                              updatedAsset = await updateAsset(assetId, { 
+                                status: newStatus,
+                                notes: notes || null
+                              });
+                              
+                              // Create adjustment transaction
+                              transactionData = {
+                                asset_id: assetId,
+                                transaction_type: 'adjustment' as const,
+                                transaction_date: formData.get('adjustmentDate') as string,
+                                amount: 0,
+                                description: `Status adjustment to ${newStatus}`,
+                                buyer_seller: null,
+                                notes: attachmentUrl || notes || null,
+                                reference_number: null
+                              };
+                            } else if (adjustmentType === 'depreciation') {
+                              // Update depreciation rate
+                              const newDepreciationRate = parseFloat(formData.get('newDepreciationRate') as string);
+                              const notes = formData.get('notes') as string || null;
+                              
+                              updatedAsset = await updateAsset(assetId, { 
+                                depreciation_rate: newDepreciationRate,
+                                notes: notes || null
+                              });
+                              
+                              // Create adjustment transaction
+                              transactionData = {
+                                asset_id: assetId,
+                                transaction_type: 'adjustment' as const,
+                                transaction_date: formData.get('adjustmentDate') as string,
+                                amount: newDepreciationRate,
+                                description: `Depreciation rate adjustment to ${newDepreciationRate}%`,
+                                buyer_seller: null,
+                                notes: attachmentUrl || notes || null,
+                                reference_number: null
+                              };
+                            }
+                            
+                            if (!updatedAsset) {
+                              throw new Error('Failed to update asset');
+                            }
+                            
+                            // Create asset transaction if transactionData exists
+                            if (transactionData) {
+                              const createdTransaction = await createAssetTransaction(transactionData);
+                              if (!createdTransaction) {
+                                console.warn('Failed to create asset transaction');
+                              }
+                            }
+                            
+                            alert('Asset adjusted successfully!');
+                            handleBack();
+                          } catch (error) {
+                            console.error('Error adjusting asset:', error);
+                            alert('Error adjusting asset. Please try again.');
+                          }
+                        }}>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Select Asset</label>
+                            <select 
+                              name="assetId"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              required
+                            >
+                              <option value="">Select an asset to adjust</option>
+                              {assets.map(asset => (
+                                <option key={asset.id} value={asset.id}>
+                                  {asset.name} - {formatCurrency(asset.current_value)} ({asset.status})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Adjustment Type</label>
+                            <select 
+                              name="adjustmentType"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              required
+                            >
+                              <option value="">Select adjustment type</option>
+                              <option value="value">Value Adjustment</option>
+                              <option value="status">Status Adjustment</option>
+                              <option value="depreciation">Depreciation Rate Adjustment</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Adjustment Date</label>
+                            <input 
+                              type="date" 
+                              name="adjustmentDate"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Notes</label>
+                            <textarea 
+                              name="notes"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Reason for adjustment or additional notes"
+                              rows={3}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Attachment (Documentation, etc.)</label>
+                            <input 
+                              type="file"
+                              name="attachment"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              accept="image/*,application/pdf"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Upload supporting documentation for the adjustment</p>
+                          </div>
+                          <div className="flex justify-end space-x-3 pt-4">
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleBack();
+                              }}
+                              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              type="submit"
+                              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
+                            >
+                              Adjust Asset
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </main>
+                </div>
               );
             default:
               console.log("Rendering default fallback for:", currentView);
