@@ -1889,6 +1889,54 @@ export const getCustomerSettlements = async (): Promise<CustomerSettlement[]> =>
   }
 };
 
+export const createCustomerSettlement = async (settlement: Omit<CustomerSettlement, 'id'>): Promise<CustomerSettlement | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('customer_settlements')
+      .insert([{ ...settlement, created_at: new Date().toISOString() }])
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data || null;
+  } catch (error) {
+    console.error('Error creating customer settlement:', error);
+    return null;
+  }
+};
+
+export const updateCustomerSettlement = async (id: string, settlement: Partial<CustomerSettlement>): Promise<CustomerSettlement | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('customer_settlements')
+      .update({ ...settlement, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data || null;
+  } catch (error) {
+    console.error('Error updating customer settlement:', error);
+    return null;
+  }
+};
+
+export const deleteCustomerSettlement = async (id: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('customer_settlements')
+      .delete()
+      .eq('id', id);
+      
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting customer settlement:', error);
+    return false;
+  }
+};
+
 // Supplier Settlements CRUD operations
 export const getSupplierSettlements = async (): Promise<SupplierSettlement[]> => {
   try {
@@ -1902,6 +1950,54 @@ export const getSupplierSettlements = async (): Promise<SupplierSettlement[]> =>
   } catch (error) {
     console.error('Error fetching supplier settlements:', error);
     return [];
+  }
+};
+
+export const createSupplierSettlement = async (settlement: Omit<SupplierSettlement, 'id'>): Promise<SupplierSettlement | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('supplier_settlements')
+      .insert([{ ...settlement, created_at: new Date().toISOString() }])
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data || null;
+  } catch (error) {
+    console.error('Error creating supplier settlement:', error);
+    return null;
+  }
+};
+
+export const updateSupplierSettlement = async (id: string, settlement: Partial<SupplierSettlement>): Promise<SupplierSettlement | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('supplier_settlements')
+      .update({ ...settlement, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data || null;
+  } catch (error) {
+    console.error('Error updating supplier settlement:', error);
+    return null;
+  }
+};
+
+export const deleteSupplierSettlement = async (id: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('supplier_settlements')
+      .delete()
+      .eq('id', id);
+      
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting supplier settlement:', error);
+    return false;
   }
 };
 

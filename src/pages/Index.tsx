@@ -42,10 +42,11 @@ import { IncomeStatement } from "@/pages/IncomeStatement";
 import { AssetsManagement } from "@/pages/AssetsManagement";
 import { CapitalManagement } from "@/pages/CapitalManagement";
 
-// Import Settings, AutomatedDashboard, and BarcodeScanner
+// Import Settings, AutomatedDashboard, BarcodeScanner, and PayablesReceivables
 import { Settings } from "@/pages/Settings";
 import { AutomatedDashboard } from "@/pages/AutomatedDashboard";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
+import { PayablesReceivables } from "@/pages/PayablesReceivables";
 
 // Import missing components
 import { Navigation } from "@/components/Navigation";
@@ -330,7 +331,7 @@ export const Index = () => {
     "purchase-assets", "sell-assets", "dispose-assets", "adjust-assets", "capital",
     "expenses", "returns", "debts", "customer-settlements", "supplier-settlements",
     "discounts", "audit", "access-logs", "statements-reports", "register",
-    "settings", "scanner", "automated"
+    "settings", "scanner", "automated", "payables-receivables"
   ];
 
   if (!authorizedViews.includes(currentView)) {
@@ -1619,6 +1620,16 @@ export const Index = () => {
               console.log("Rendering AutomatedDashboard");
               return (
                 <AutomatedDashboard
+                  username={user?.email || "admin"}
+                  onBack={handleBack}
+                  onLogout={handleLogout}
+                />
+              );
+
+            case "payables-receivables":
+              console.log("Rendering PayablesReceivables");
+              return (
+                <PayablesReceivables
                   username={user?.email || "admin"}
                   onBack={handleBack}
                   onLogout={handleLogout}

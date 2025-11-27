@@ -72,6 +72,13 @@ export const FinanceDashboard = ({ username, onBack, onLogout, onNavigate }: Fin
       color: "bg-white border border-gray-200"
     },
     {
+      id: "payables-receivables",
+      title: "Payables & Receivables",
+      description: "Manage accounts payable and receivable",
+      icon: FileText,
+      color: "bg-white border border-gray-200"
+    },
+    {
       id: "assets",
       title: "Assets Management",
       description: "Manage company assets and transactions",
