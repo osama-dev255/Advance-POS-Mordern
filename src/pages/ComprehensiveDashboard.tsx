@@ -113,13 +113,6 @@ export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: Compr
       color: "bg-white border border-gray-200"
     },
     {
-      id: "analytics",
-      title: "Business Analytics",
-      description: "View detailed sales reports and business performance metrics",
-      icon: BarChart3,
-      color: "bg-white border border-gray-200"
-    },
-    {
       id: "expenses",
       title: "Expense Tracking",
       description: "Track business expenses and categorize spending",
@@ -205,16 +198,12 @@ export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: Compr
       return true;
     }
     
-    const hasAccess = hasModuleAccess(userRole, module.id);
-    console.log("Module", module.id, "access for role", userRole, ":", hasAccess);
-    return hasAccess;
+    return hasModuleAccess(userRole, module.id);
   });
 
   const handleNavigate = async (moduleId: string) => {
-    console.log("handleNavigate called with moduleId:", moduleId);
     // Special handling for reports module
-    if (moduleId === "reports" || moduleId === "analytics") {
-      console.log("Navigating to statements-reports for module:", moduleId);
+    if (moduleId === "reports") {
       onNavigate("statements-reports");
       return;
     }
@@ -223,8 +212,66 @@ export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: Compr
       onNavigate("financial-reports");
       return;
     }
-    console.log("Navigating to module:", moduleId);
-    onNavigate(moduleId);
+    
+    // Navigate to specific modules
+    switch (moduleId) {
+      case "inventory":
+        onNavigate("products");
+        break;
+      case "sales":
+        onNavigate("sales");
+        break;
+      case "purchase":
+        onNavigate("purchase");
+        break;
+      case "finance":
+        onNavigate("finance");
+        break;
+      case "assets":
+        onNavigate("assets");
+        break;
+      case "employees":
+        onNavigate("employees");
+        break;
+      case "customers":
+        onNavigate("customers");
+        break;
+      case "suppliers":
+        onNavigate("suppliers");
+        break;
+      case "expenses":
+        onNavigate("expenses");
+        break;
+      case "returns":
+        onNavigate("returns");
+        break;
+      case "debts":
+        onNavigate("debts");
+        break;
+      case "customer-settlements":
+        onNavigate("customer-settlements");
+        break;
+      case "supplier-settlements":
+        onNavigate("supplier-settlements");
+        break;
+      case "access-logs":
+        onNavigate("access-logs");
+        break;
+      case "settings":
+        onNavigate("settings");
+        break;
+      case "scanner":
+        onNavigate("scanner");
+        break;
+      case "automated":
+        onNavigate("automated");
+        break;
+      case "capital":
+        onNavigate("capital");
+        break;
+      default:
+        onNavigate(moduleId);
+    }
   };
 
   // Show loading state while fetching role
@@ -263,11 +310,6 @@ export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: Compr
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3">Welcome back, {username}!</h2>
           <p className="text-muted-foreground text-sm sm:text-base md:text-lg">
             Select a module to manage your business operations
-          </p>
-        </div>
-        <div className="mb-4">
-          <p className="text-sm text-muted-foreground">
-            User role: {userRole || "Loading..."} | Total modules: {allModules.length} | Accessible modules: {modules.length}
           </p>
         </div>
         

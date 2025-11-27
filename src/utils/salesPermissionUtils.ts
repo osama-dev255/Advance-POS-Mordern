@@ -92,12 +92,8 @@ export const getCurrentUserRole = async (): Promise<string | null> => {
  * @returns boolean - True if user has access, false otherwise
  */
 export const hasModuleAccess = (role: string | null, module: string): boolean => {
-  console.log("hasModuleAccess called with role:", role, "module:", module);
   // If no role is provided, deny access
-  if (!role) {
-    console.log("No role provided, denying access to module:", module);
-    return false;
-  }
+  if (!role) return false;
   
   // Define access permissions by role
   const rolePermissions: Record<string, string[]> = {
@@ -106,34 +102,36 @@ export const hasModuleAccess = (role: string | null, module: string): boolean =>
       'employees', 'expenses', 'returns', 'debts', 'discounts', 'audit', 
       'reports', 'access-logs', 'settings', 'scanner', 'automated',
       'customer-settlements', 'supplier-settlements', 'transactions',
-      'cart', 'orders', 'analytics', 'products', 'test-data',
+      'sales-cart', 'sales-orders', 'products', 'test-data',
       'financial-statements', 'purchase-orders', 'purchase-terminal',
       'purchase-transactions', 'purchase-reports', 'spending-analytics',
       'statements-reports', 'financial-reports', 'income-statement',
-      'assets', 'capital'
+      'assets', 'capital',
+      'purchase-assets', 'sell-assets', 'dispose-assets', 'adjust-assets'
     ],
     'manager': [
       'sales', 'inventory', 'customers', 'suppliers', 'purchase', 'finance', 
       'expenses', 'returns', 'debts', 'discounts', 'audit', 
       'reports', 'access-logs', 'settings', 'scanner', 'automated',
       'customer-settlements', 'supplier-settlements', 'transactions',
-      'cart', 'orders', 'analytics', 'products', 'test-data',
+      'sales-cart', 'sales-orders', 'products', 'test-data',
       'financial-statements', 'purchase-orders', 'purchase-terminal',
       'purchase-transactions', 'purchase-reports', 'spending-analytics',
       'statements-reports', 'financial-reports', 'income-statement',
-      'assets', 'capital'
+      'assets', 'capital',
+      'purchase-assets', 'sell-assets', 'dispose-assets', 'adjust-assets'
     ],
     'cashier': [
       'sales', 'customers', 'products', 'transactions', 'discounts', 'scanner',
-      'cart', 'orders', 'analytics', 'test-data', 'capital'
+      'sales-cart', 'sales-orders', 'test-data', 'capital',
+      'assets'
     ],
     'staff': [
-      'inventory', 'customers', 'products', 'capital'
+      'inventory', 'customers', 'products', 'capital',
+      'assets'
     ]
   };
   
   // Check if the role exists and has access to the module
-  const hasAccess = rolePermissions[role]?.includes(module) || false;
-  console.log("Role", role, "has access to module", module, ":", hasAccess);
-  return hasAccess;
+  return rolePermissions[role]?.includes(module) || false;
 };

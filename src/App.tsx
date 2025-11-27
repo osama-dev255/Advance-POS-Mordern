@@ -73,7 +73,7 @@ const App = () => {
                 <Route path="/register" element={<Index />} />
                 <Route path="/dashboard" element={<Dashboard username="admin" onNavigate={() => {}} onLogout={() => {}} />} />
                 <Route path="/sales" element={<SalesDashboard username="admin" onBack={() => {}} onLogout={() => {}} onNavigate={() => {}} />} />
-                <Route path="/sales/cart" element={<SalesCart username="admin" onBack={() => {}} onLogout={() => {}} />} />
+                <Route path="/sales/cart" element={<Index />} />
                 <Route path="/sales/orders" element={<SalesOrders username="admin" onBack={() => {}} onLogout={() => {}} />} />
                 <Route path="/test/sales-orders" element={<TestSalesOrders username="admin" onBack={() => {}} onLogout={() => {}} />} />
                 <Route path="/purchase/terminal" element={<PurchaseTerminal username="admin" onBack={() => {}} onLogout={() => {}} />} />

@@ -100,13 +100,6 @@ export const FinanceDashboard = ({ username, onBack, onLogout, onNavigate }: Fin
       color: "bg-white border border-gray-200"
     },
     {
-      id: "analytics",
-      title: "Financial Analytics",
-      description: "Analyze financial performance and trends",
-      icon: BarChart3,
-      color: "bg-white border border-gray-200"
-    },
-    {
       id: "settings",
       title: "Financial Settings",
       description: "Configure financial system preferences and options",
@@ -134,6 +127,7 @@ export const FinanceDashboard = ({ username, onBack, onLogout, onNavigate }: Fin
   }, [userRole, financeModules.length, onBack]);
 
   const handleNavigate = (moduleId: string) => {
+    console.log("FinanceDashboard handleNavigate called with moduleId:", moduleId);
     // Special handling for reports module
     if (moduleId === "reports") {
       console.log("Financial reports module clicked");
@@ -146,6 +140,7 @@ export const FinanceDashboard = ({ username, onBack, onLogout, onNavigate }: Fin
       onNavigate("financial-reports");
       return;
     }
+    console.log("Navigating to moduleId:", moduleId);
     onNavigate(moduleId);
   };
 

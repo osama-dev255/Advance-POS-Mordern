@@ -93,13 +93,6 @@ export const Dashboard = ({ username, onNavigate, onLogout }: DashboardProps) =>
       color: "bg-white border border-gray-200"
     },
     {
-      id: "analytics",
-      title: "Business Analytics",
-      description: "View detailed sales reports and business performance metrics",
-      icon: BarChart3,
-      color: "bg-white border border-gray-200"
-    },
-    {
       id: "expenses",
       title: "Expense Tracking",
       description: "Track business expenses and categorize spending",

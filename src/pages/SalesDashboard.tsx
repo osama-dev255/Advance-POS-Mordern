@@ -43,14 +43,14 @@ export const SalesDashboard = ({ username, onBack, onLogout, onNavigate }: Sales
 
   const allSalesModules: SalesModule[] = [
     {
-      id: "cart",
+      id: "sales-cart",
       title: "Sales Terminal",
       description: "Process sales transactions and manage customer purchases",
       icon: ShoppingCart,
       color: "bg-white border border-gray-200"
     },
     {
-      id: "orders",
+      id: "sales-orders",
       title: "Sales Orders",
       description: "View and manage all sales orders and transactions",
       icon: Receipt,
@@ -68,13 +68,6 @@ export const SalesDashboard = ({ username, onBack, onLogout, onNavigate }: Sales
       title: "Customer Management",
       description: "Manage customer information and loyalty programs",
       icon: Users,
-      color: "bg-white border border-gray-200"
-    },
-    {
-      id: "analytics",
-      title: "Sales Analytics",
-      description: "Analyze sales performance and business metrics",
-      icon: BarChart3,
       color: "bg-white border border-gray-200"
     },
     {

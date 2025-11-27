@@ -42,6 +42,15 @@ import { IncomeStatement } from "@/pages/IncomeStatement";
 import { AssetsManagement } from "@/pages/AssetsManagement";
 import { CapitalManagement } from "@/pages/CapitalManagement";
 
+// Import Settings, AutomatedDashboard, and BarcodeScanner
+import { Settings } from "@/pages/Settings";
+import { AutomatedDashboard } from "@/pages/AutomatedDashboard";
+import { BarcodeScanner } from "@/components/BarcodeScanner";
+
+// Import missing components
+import { Navigation } from "@/components/Navigation";
+import { Card, CardContent } from "@/components/ui/card";
+
 import { 
   createAsset, 
   createAssetTransaction,
@@ -150,7 +159,7 @@ export const Index = () => {
   };
 
   const handleNavigate = (view: string) => {
-    console.log("Index.handleNavigate called with view:", view);
+    console.log("Index handleNavigate called with view:", view);
     setCurrentView(view);
   };
 
@@ -177,15 +186,14 @@ export const Index = () => {
         setCurrentView("sales");
         break;
       case "products":
-        setCurrentView("comprehensive");
+        setCurrentView("inventory");
         break;
       case "customers":
         setCurrentView("comprehensive");
         break;
       case "transactions":
-        setCurrentView("comprehensive");
+        setCurrentView("sales");
         break;
-      case "analytics":
       case "sales-analytics":
         setCurrentView("sales");
         break;
@@ -241,7 +249,7 @@ export const Index = () => {
         setCurrentView("sales");
         break;
       case "audit":
-        setCurrentView("comprehensive");
+        setCurrentView("inventory");
         break;
       case "access-logs":
         setCurrentView("comprehensive");
@@ -252,10 +260,6 @@ export const Index = () => {
       case "reports":
         // Show financial management dashboard instead of going directly to reports
         setCurrentView("finance");
-        break;
-      case "financial-reports":
-        // Show financial reports page
-        setCurrentView("financial-reports");
         break;
       case "taxes":
         setCurrentView("finance");
@@ -318,12 +322,15 @@ export const Index = () => {
   // Ensure that we don't render unauthorized views
   const authorizedViews = [
     "comprehensive", "dashboard", "sales", "sales-cart", "sales-orders", 
-    "test-sales-orders", "products", "customers", "transactions", "analytics", 
+    "test-sales-orders", "products", "customers", "transactions", 
     "sales-analytics", "spending-analytics", "employees", "purchase", 
     "purchase-terminal", "purchase-transactions", "purchase-reports", 
     "suppliers", "purchase-orders", "finance", "reports", "financial-reports",
     "taxes", "capital", "income-statement", "test", "test-qr", "assets",
-    "purchase-assets", "sell-assets", "dispose-assets", "adjust-assets", "capital"
+    "purchase-assets", "sell-assets", "dispose-assets", "adjust-assets", "capital",
+    "expenses", "returns", "debts", "customer-settlements", "supplier-settlements",
+    "discounts", "audit", "access-logs", "statements-reports", "register",
+    "settings", "scanner", "automated"
   ];
 
   if (!authorizedViews.includes(currentView)) {
@@ -425,7 +432,6 @@ export const Index = () => {
                   onLogout={handleLogout}
                 />
               );
-            case "analytics":
             case "sales-analytics":
               console.log("Rendering SalesAnalytics");
               return (
@@ -1562,6 +1568,57 @@ export const Index = () => {
               console.log("Rendering CapitalManagement");
               return (
                 <CapitalManagement
+                  username={user?.email || "admin"}
+                  onBack={handleBack}
+                  onLogout={handleLogout}
+                />
+              );
+
+            case "settings":
+              console.log("Rendering Settings");
+              return (
+                <Settings
+                  username={user?.email || "admin"}
+                  onBack={handleBack}
+                  onLogout={handleLogout}
+                />
+              );
+
+            case "scanner":
+              console.log("Rendering BarcodeScanner");
+              return (
+                <div className="min-h-screen bg-background">
+                  <Navigation 
+                    title="Scan Items" 
+                    onBack={handleBack}
+                    onLogout={handleLogout} 
+                    username={user?.email || "admin"}
+                  />
+                  <main className="container mx-auto p-6">
+                    <div className="mb-6">
+                      <h2 className="text-3xl font-bold">Scan Items</h2>
+                      <p className="text-muted-foreground">Use your device's camera to scan barcodes</p>
+                    </div>
+                    <Card>
+                      <CardContent className="p-6">
+                        <BarcodeScanner 
+                          onItemsScanned={(items) => {
+                            console.log("Items scanned:", items);
+                            // Handle scanned items
+                          }}
+                          onCancel={handleBack}
+                          autoAddToCart={true}
+                        />
+                      </CardContent>
+                    </Card>
+                  </main>
+                </div>
+              );
+
+            case "automated":
+              console.log("Rendering AutomatedDashboard");
+              return (
+                <AutomatedDashboard
                   username={user?.email || "admin"}
                   onBack={handleBack}
                   onLogout={handleLogout}
