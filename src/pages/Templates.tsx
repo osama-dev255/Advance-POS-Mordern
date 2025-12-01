@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -447,9 +447,65 @@ Date: [DATE]`,
     const saved = localStorage.getItem('savedDeliveryNotes');
     return saved ? JSON.parse(saved) : [];
   });
-  
+
+  // Effect to update savedDeliveryNotes when localStorage changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const saved = localStorage.getItem('savedDeliveryNotes');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setSavedDeliveryNotes(parsed);
+        } catch (e) {
+          console.error('Error parsing saved delivery notes:', e);
+        }
+      }
+    };
+
+    // Add event listener for storage changes
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
   const [deliveryNoteName, setDeliveryNoteName] = useState<string>("");
   
+  // Get the next delivery note number from localStorage
+  const getNextDeliveryNoteNumber = () => {
+    const lastNumber = localStorage.getItem('lastDeliveryNoteNumber');
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}${(today.getMonth() + 1).toString().padStart(2, '0')}${today.getDate().toString().padStart(2, '0')}`;
+    
+    let nextNumber = 1;
+    if (lastNumber) {
+      const [lastDate, lastSeq] = lastNumber.split('-');
+      if (lastDate === dateStr) {
+        nextNumber = parseInt(lastSeq) + 1;
+      }
+    }
+    
+    const newNumber = `${dateStr}-${nextNumber.toString().padStart(3, '0')}`;
+    localStorage.setItem('lastDeliveryNoteNumber', newNumber);
+    return `DN-${newNumber}`;
+  };
+  
+  // Generate delivery note number automatically
+  useEffect(() => {
+    if (activeTab === "preview" && !deliveryNoteName) {
+      const deliveryNoteNumber = getNextDeliveryNoteNumber();
+      setDeliveryNoteName(deliveryNoteNumber);
+      
+      // Also update the delivery note number in the data
+      setDeliveryNoteData(prev => ({
+        ...prev,
+        deliveryNoteNumber: deliveryNoteNumber
+      }));
+    }
+  }, [activeTab, deliveryNoteName]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleEditTemplate = (templateId: string) => {
@@ -660,13 +716,19 @@ Date: [DATE]`,
   // Save delivery note to localStorage
   const handleSaveDeliveryNote = () => {
     if (!deliveryNoteName.trim()) {
-      alert("Please enter a name for the delivery note");
-      return;
+      const deliveryNoteNumber = getNextDeliveryNoteNumber();
+      setDeliveryNoteName(deliveryNoteNumber);
+      
+      // Also update the delivery note number in the data
+      setDeliveryNoteData(prev => ({
+        ...prev,
+        deliveryNoteNumber: deliveryNoteNumber
+      }));
     }
     
     const newSavedNote: SavedDeliveryNote = {
       id: Date.now().toString(),
-      name: deliveryNoteName,
+      name: deliveryNoteName || getNextDeliveryNoteNumber(),
       data: deliveryNoteData,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -676,7 +738,19 @@ Date: [DATE]`,
     setSavedDeliveryNotes(updatedNotes);
     localStorage.setItem('savedDeliveryNotes', JSON.stringify(updatedNotes));
     
-    alert(`Delivery note "${deliveryNoteName}" saved successfully!`);
+    alert(`Delivery note "${newSavedNote.name}" saved successfully!`);
+    
+    // Generate next number for the next delivery note
+    setTimeout(() => {
+      const nextDeliveryNoteNumber = getNextDeliveryNoteNumber();
+      setDeliveryNoteName(nextDeliveryNoteNumber);
+      
+      // Also update the delivery note number in the data
+      setDeliveryNoteData(prev => ({
+        ...prev,
+        deliveryNoteNumber: nextDeliveryNoteNumber
+      }));
+    }, 100);
   };
 
   // Load a saved delivery note
@@ -685,7 +759,196 @@ Date: [DATE]`,
     if (note) {
       setDeliveryNoteData(note.data);
       setDeliveryNoteName(note.name);
+      setActiveTab("preview"); // Switch to preview tab to show the loaded data
       alert(`Delivery note "${note.name}" loaded successfully!`);
+    }
+  };
+
+  // View a saved delivery note in a new window/tab
+  const handleViewDeliveryNote = (noteId: string) => {
+    const note = savedDeliveryNotes.find(n => n.id === noteId);
+    if (note) {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        // Calculate totals for the viewed note
+        const viewedData = note.data;
+        const totalItems = viewedData.items.length;
+        const totalQuantity = viewedData.items.reduce((sum, item) => sum + Number(item.delivered || 0), 0);
+        const totalPackages = viewedData.items.reduce((count, item) => 
+          item.unit && item.delivered ? count + 1 : count, 0
+        );
+        
+        const printContent = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Delivery Note - ${note.name}</title>
+            <style>
+              body { 
+                font-family: Arial, sans-serif; 
+                margin: 20px;
+                font-size: 14px;
+              }
+              .header {
+                text-align: center;
+                margin-bottom: 20px;
+              }
+              .header h1 {
+                font-size: 24px;
+                margin: 0;
+              }
+              .section {
+                margin-bottom: 20px;
+              }
+              .grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+              }
+              .grid-4 {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr 1fr;
+                gap: 10px;
+              }
+              .signatures {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 20px;
+                margin-top: 40px;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+              }
+              th, td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+              }
+              th {
+                background-color: #f2f2f2;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>DELIVERY NOTE</h1>
+            </div>
+            
+            <div class="grid">
+              <div>
+                <h3 class="font-bold text-lg">${viewedData.businessName}</h3>
+                <p>${viewedData.businessAddress}</p>
+                <p>Phone: ${viewedData.businessPhone}</p>
+                <p>Email: ${viewedData.businessEmail}</p>
+              </div>
+              
+              <div>
+                <h3 class="font-bold">TO:</h3>
+                <p>${viewedData.customerName}</p>
+                <p>${viewedData.customerAddress1}</p>
+                <p>${viewedData.customerAddress2}</p>
+                <p>Phone: ${viewedData.customerPhone}</p>
+                <p>Email: ${viewedData.customerEmail}</p>
+              </div>
+            </div>
+            
+            <div class="grid-4">
+              <div>
+                <p class="font-bold">Delivery Note #:</p>
+                <p>${viewedData.deliveryNoteNumber}</p>
+              </div>
+              <div>
+                <p class="font-bold">Date:</p>
+                <p>${viewedData.date}</p>
+              </div>
+              <div>
+                <p class="font-bold">Delivery Date:</p>
+                <p>${viewedData.deliveryDate || '_________'}</p>
+              </div>
+              <div>
+                <p class="font-bold">Vehicle #:</p>
+                <p>${viewedData.vehicle || '_________'}</p>
+              </div>
+              <div>
+                <p class="font-bold">Driver:</p>
+                <p>${viewedData.driver || '_________'}</p>
+              </div>
+            </div>
+            
+            <div class="section">
+              <h3 class="font-bold mb-2">ITEMS DELIVERED:</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Item Description</th>
+                    <th>Quantity</th>
+                    <th>Unit</th>
+                    <th>Delivered</th>
+                    <th>Remarks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${viewedData.items.map(item => `
+                    <tr>
+                      <td>${item.description}</td>
+                      <td>${item.quantity}</td>
+                      <td>${item.unit}</td>
+                      <td>${item.delivered}</td>
+                      <td>${item.remarks}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+            
+            <div class="section">
+              <h3 class="font-bold mb-2">DELIVERY NOTES:</h3>
+              <p>${viewedData.deliveryNotes}</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <span class="font-bold">Total Items:</span> ${totalItems}
+              </div>
+              <div>
+                <span class="font-bold">Total Quantity:</span> ${totalQuantity} units
+              </div>
+              <div>
+                <span class="font-bold">Total Packages:</span> ${totalPackages}
+              </div>
+            </div>
+            
+            <div class="signatures">
+              <div>
+                <h4 class="font-bold mb-2">Prepared By</h4>
+                <p>Name: ${viewedData.preparedByName || '_________'}</p>
+                <p>Date: ${viewedData.preparedByDate || '_________'}</p>
+                <p class="mt-8">Signature: _________________</p>
+              </div>
+              
+              <div>
+                <h4 class="font-bold mb-2">Driver Signature</h4>
+                <p>Name: ${viewedData.driverName || '_________'}</p>
+                <p>Date: ${viewedData.driverDate || '_________'}</p>
+                <p class="mt-8">Signature: _________________</p>
+              </div>
+              
+              <div>
+                <h4 class="font-bold mb-2">Received By</h4>
+                <p>Name: ${viewedData.receivedByName || '_________'}</p>
+                <p>Date: ${viewedData.receivedByDate || '_________'}</p>
+                <p class="mt-8">Signature: _________________</p>
+                <p class="text-xs mt-2">(Signature Required)</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `;
+        
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+      }
     }
   };
 
@@ -1257,6 +1520,14 @@ Date: [DATE]`,
                           <Button 
                             size="sm" 
                             variant="outline" 
+                            onClick={() => handleViewDeliveryNote(note.id)}
+                            className="h-6 px-2"
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
                             onClick={() => handleLoadDeliveryNote(note.id)}
                             className="h-6 px-2"
                           >
@@ -1286,8 +1557,21 @@ Date: [DATE]`,
                     {/* Business Info */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <h3 className="font-bold text-lg">{deliveryNoteData.businessName}</h3>
-                        <p className="text-sm">{deliveryNoteData.businessAddress}</p>
+                        <h3 className="font-bold text-lg">
+                          <Input 
+                            value={deliveryNoteData.businessName}
+                            onChange={(e) => handleDeliveryNoteChange("businessName", e.target.value)}
+                            className="w-full h-8 p-1 text-lg font-bold"
+                          />
+                        </h3>
+                        <div className="mt-2">
+                          <Textarea 
+                            value={deliveryNoteData.businessAddress}
+                            onChange={(e) => handleDeliveryNoteChange("businessAddress", e.target.value)}
+                            className="w-full h-16 p-1 text-sm resize-none"
+                            placeholder="Business Address"
+                          />
+                        </div>
                         <div className="flex items-center gap-2 text-sm mt-1">
                           <span>Phone:</span>
                           <Input 
