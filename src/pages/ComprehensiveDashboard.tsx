@@ -16,7 +16,8 @@ import {
   AlertTriangle,
   Printer,
   Building,
-  PiggyBank
+  PiggyBank,
+  LayoutTemplate
 } from "lucide-react";
 import { hasModuleAccess, getCurrentUserRole } from "@/utils/salesPermissionUtils";
 
@@ -59,36 +60,29 @@ export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: Compr
     {
       id: "inventory",
       title: "Inventory Management",
-      description: "Manage products, stock levels, categories, and inventory tracking",
+      description: "Manage products, stock levels, and inventory tracking",
       icon: Package,
       color: "bg-white border border-gray-200"
     },
     {
       id: "sales",
-      title: "Sales Dashboard",
-      description: "Process sales, manage transactions, and view sales analytics",
+      title: "Sales Terminal",
+      description: "Process sales transactions and manage customers",
       icon: ShoppingCart,
       color: "bg-white border border-gray-200"
     },
     {
       id: "purchase",
       title: "Purchase Management",
-      description: "Handle supplier orders, track purchases, and manage vendors",
+      description: "Handle supplier orders and purchase transactions",
       icon: Truck,
       color: "bg-white border border-gray-200"
     },
     {
       id: "finance",
       title: "Financial Management",
-      description: "Manage expenses, debts, and financial reporting",
+      description: "Track expenses, debts, and financial reporting",
       icon: Wallet,
-      color: "bg-white border border-gray-200"
-    },
-    {
-      id: "capital",
-      title: "Capital Management",
-      description: "Track and manage business capital, investments, and funding",
-      icon: PiggyBank,
       color: "bg-white border border-gray-200"
     },
     {
@@ -108,35 +102,35 @@ export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: Compr
     {
       id: "employees",
       title: "Employee Management",
-      description: "Manage staff members and permissions",
+      description: "Manage staff information and payroll",
       icon: User,
       color: "bg-white border border-gray-200"
     },
     {
       id: "expenses",
       title: "Expense Tracking",
-      description: "Track business expenses and categorize spending",
-      icon: Wallet,
+      description: "Record and categorize business expenses",
+      icon: PiggyBank,
       color: "bg-white border border-gray-200"
     },
     {
       id: "returns",
-      title: "Returns Management",
+      title: "Return Management",
       description: "Process product returns and refunds",
-      icon: Package,
+      icon: AlertTriangle,
       color: "bg-white border border-gray-200"
     },
     {
       id: "debts",
       title: "Debt Management",
-      description: "Track customer debts and payment schedules",
-      icon: Wallet,
+      description: "Track receivables and payables",
+      icon: FileText,
       color: "bg-white border border-gray-200"
     },
     {
       id: "customer-settlements",
       title: "Customer Settlements",
-      description: "Manage customer debt settlements and payments",
+      description: "Manage customer payments and settlements",
       icon: Users,
       color: "bg-white border border-gray-200"
     },
@@ -187,6 +181,13 @@ export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: Compr
       title: "Assets Management",
       description: "Manage company assets, depreciation, and asset tracking",
       icon: Building,
+      color: "bg-white border border-gray-200"
+    },
+    {
+      id: "templates",
+      title: "Business Templates",
+      description: "Professional templates for your business documents",
+      icon: LayoutTemplate,
       color: "bg-white border border-gray-200"
     }
   ];
@@ -268,6 +269,9 @@ export const ComprehensiveDashboard = ({ username, onNavigate, onLogout }: Compr
         break;
       case "capital":
         onNavigate("capital");
+        break;
+      case "templates":
+        onNavigate("templates");
         break;
       default:
         onNavigate(moduleId);

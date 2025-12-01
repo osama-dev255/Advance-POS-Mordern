@@ -103,11 +103,13 @@ export const hasModuleAccess = (role: string | null, module: string): boolean =>
       'reports', 'access-logs', 'settings', 'scanner', 'automated',
       'customer-settlements', 'supplier-settlements', 'payables-receivables', 'transactions',
       'sales-cart', 'sales-orders', 'products', 'test-data',
+      'customer-stock', 'monetary-assets',
       'financial-statements', 'purchase-orders', 'purchase-terminal',
       'purchase-transactions', 'purchase-reports', 'spending-analytics',
       'statements-reports', 'financial-reports', 'income-statement',
       'assets', 'capital',
-      'purchase-assets', 'sell-assets', 'dispose-assets', 'adjust-assets'
+      'purchase-assets', 'sell-assets', 'dispose-assets', 'adjust-assets',
+      'templates'
     ],
     'manager': [
       'sales', 'inventory', 'customers', 'suppliers', 'purchase', 'finance', 
@@ -115,20 +117,22 @@ export const hasModuleAccess = (role: string | null, module: string): boolean =>
       'reports', 'access-logs', 'settings', 'scanner', 'automated',
       'customer-settlements', 'supplier-settlements', 'payables-receivables', 'transactions',
       'sales-cart', 'sales-orders', 'products', 'test-data',
+      'customer-stock', 'monetary-assets',
       'financial-statements', 'purchase-orders', 'purchase-terminal',
       'purchase-transactions', 'purchase-reports', 'spending-analytics',
       'statements-reports', 'financial-reports', 'income-statement',
       'assets', 'capital',
-      'purchase-assets', 'sell-assets', 'dispose-assets', 'adjust-assets'
+      'purchase-assets', 'sell-assets', 'dispose-assets', 'adjust-assets',
+      'templates'
     ],
     'cashier': [
       'sales', 'customers', 'products', 'transactions', 'discounts', 'scanner',
       'sales-cart', 'sales-orders', 'test-data', 'capital',
-      'assets'
+      'assets', 'templates'
     ],
     'staff': [
       'inventory', 'customers', 'products', 'capital',
-      'assets'
+      'assets', 'templates'
     ]
   };
   

@@ -64,6 +64,20 @@ export const SalesDashboard = ({ username, onBack, onLogout, onNavigate }: Sales
       color: "bg-white border border-gray-200"
     },
     {
+      id: "customer-stock",
+      title: "Customer Stock",
+      description: "Manage uncollected stock and changes after sales to customer",
+      icon: Package,
+      color: "bg-white border border-gray-200"
+    },
+    {
+      id: "monetary-assets",
+      title: "Monetary Assets",
+      description: "Track financial assets and monetary changes from sales",
+      icon: Wallet,
+      color: "bg-white border border-gray-200"
+    },
+    {
       id: "customers",
       title: "Customer Management",
       description: "Manage customer information and loyalty programs",

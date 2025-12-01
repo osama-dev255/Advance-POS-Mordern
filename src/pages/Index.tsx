@@ -47,6 +47,9 @@ import { Settings } from "@/pages/Settings";
 import { AutomatedDashboard } from "@/pages/AutomatedDashboard";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { PayablesReceivables } from "@/pages/PayablesReceivables";
+import { CustomerStock } from "@/pages/CustomerStock";
+import { MonetaryAssets } from "@/pages/MonetaryAssets";
+import { Templates } from "@/pages/Templates";
 
 // Import missing components
 import { Navigation } from "@/components/Navigation";
@@ -217,7 +220,7 @@ export const Index = () => {
         setCurrentView("purchase");
         break;
       case "suppliers":
-        setCurrentView("purchase");
+        setCurrentView("comprehensive");
         break;
       case "purchase-orders":
         setCurrentView("purchase");
@@ -225,17 +228,23 @@ export const Index = () => {
       case "finance":
         setCurrentView("comprehensive");
         break;
-      case "statements-reports":
+      case "reports":
         setCurrentView("finance");
         break;
       case "financial-reports":
+        setCurrentView("finance");
+        break;
+      case "taxes":
+        setCurrentView("finance");
+        break;
+      case "capital":
         setCurrentView("finance");
         break;
       case "expenses":
         setCurrentView("finance");
         break;
       case "returns":
-        setCurrentView("sales");
+        setCurrentView("comprehensive");
         break;
       case "debts":
         setCurrentView("finance");
@@ -286,6 +295,9 @@ export const Index = () => {
       case "adjust-assets":
         setCurrentView("assets");
         break;
+      case "templates":
+        setCurrentView("comprehensive");
+        break;
       default:
         setCurrentView("comprehensive");
     }
@@ -331,7 +343,8 @@ export const Index = () => {
     "purchase-assets", "sell-assets", "dispose-assets", "adjust-assets", "capital",
     "expenses", "returns", "debts", "customer-settlements", "supplier-settlements",
     "discounts", "audit", "access-logs", "statements-reports", "register",
-    "settings", "scanner", "automated", "payables-receivables"
+    "settings", "scanner", "automated", "payables-receivables",
+    "customer-stock", "monetary-assets", "templates"
   ];
 
   if (!authorizedViews.includes(currentView)) {
@@ -1636,6 +1649,29 @@ export const Index = () => {
                 />
               );
 
+            case "customer-stock":
+              console.log("Rendering CustomerStock");
+              return (
+                <CustomerStock
+                  username={user?.email || "admin"}
+                  onBack={handleBack}
+                  onLogout={handleLogout}
+                />
+              );
+
+            case "monetary-assets":
+              console.log("Rendering MonetaryAssets");
+              return (
+                <MonetaryAssets
+                  username={user?.email || "admin"}
+                  onBack={handleBack}
+                  onLogout={handleLogout}
+                />
+              );
+
+            case "templates":
+              console.log("Rendering Templates");
+              return <Templates onBack={handleBack} />;
             default:
               console.log("Rendering default fallback for:", currentView);
               return (
