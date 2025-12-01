@@ -79,6 +79,14 @@ interface DeliveryNoteData {
   receivedByDate: string;
 }
 
+interface SavedDeliveryNote {
+  id: string;
+  name: string;
+  data: DeliveryNoteData;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface TemplatesProps {
   onBack?: () => void;
 }
@@ -435,6 +443,13 @@ Date: [DATE]`,
     receivedByDate: ""
   });
   
+  const [savedDeliveryNotes, setSavedDeliveryNotes] = useState<SavedDeliveryNote[]>(() => {
+    const saved = localStorage.getItem('savedDeliveryNotes');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  const [deliveryNoteName, setDeliveryNoteName] = useState<string>("");
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleEditTemplate = (templateId: string) => {
@@ -640,6 +655,46 @@ Date: [DATE]`,
     );
     
     return { totalItems, totalQuantity, totalPackages };
+  };
+
+  // Save delivery note to localStorage
+  const handleSaveDeliveryNote = () => {
+    if (!deliveryNoteName.trim()) {
+      alert("Please enter a name for the delivery note");
+      return;
+    }
+    
+    const newSavedNote: SavedDeliveryNote = {
+      id: Date.now().toString(),
+      name: deliveryNoteName,
+      data: deliveryNoteData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    const updatedNotes = [...savedDeliveryNotes, newSavedNote];
+    setSavedDeliveryNotes(updatedNotes);
+    localStorage.setItem('savedDeliveryNotes', JSON.stringify(updatedNotes));
+    
+    alert(`Delivery note "${deliveryNoteName}" saved successfully!`);
+  };
+
+  // Load a saved delivery note
+  const handleLoadDeliveryNote = (noteId: string) => {
+    const note = savedDeliveryNotes.find(n => n.id === noteId);
+    if (note) {
+      setDeliveryNoteData(note.data);
+      setDeliveryNoteName(note.name);
+      alert(`Delivery note "${note.name}" loaded successfully!`);
+    }
+  };
+
+  // Delete a saved delivery note
+  const handleDeleteSavedNote = (noteId: string) => {
+    const updatedNotes = savedDeliveryNotes.filter(n => n.id !== noteId);
+    setSavedDeliveryNotes(updatedNotes);
+    localStorage.setItem('savedDeliveryNotes', JSON.stringify(updatedNotes));
+    alert("Saved delivery note deleted successfully!");
   };
 
   // Print delivery note
@@ -1166,6 +1221,17 @@ Date: [DATE]`,
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-medium">Delivery Note Preview</h3>
                   <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      placeholder="Delivery Note Name"
+                      value={deliveryNoteName}
+                      onChange={(e) => setDeliveryNoteName(e.target.value)}
+                      className="w-48 h-10"
+                    />
+                    <Button onClick={handleSaveDeliveryNote}>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save
+                    </Button>
                     <Button variant="outline" onClick={() => setActiveTab("manage")}>
                       Back to Templates
                     </Button>
@@ -1179,6 +1245,36 @@ Date: [DATE]`,
                     </Button>
                   </div>
                 </div>
+                
+                // Saved delivery notes section
+                {savedDeliveryNotes.length > 0 && (
+                  <div className="border rounded-lg p-4">
+                    <h4 className="font-bold mb-2">Saved Delivery Notes:</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {savedDeliveryNotes.map((note) => (
+                        <div key={note.id} className="flex items-center gap-2 bg-gray-100 rounded p-2">
+                          <span className="text-sm">{note.name}</span>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => handleLoadDeliveryNote(note.id)}
+                            className="h-6 px-2"
+                          >
+                            Load
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => handleDeleteSavedNote(note.id)}
+                            className="h-6 px-2"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
                 <div className="border rounded-lg p-6 max-w-4xl mx-auto">
                   <div className="space-y-6">
